@@ -1,0 +1,3 @@
+<ul>
+  <li h-for="(i, item) in self.items.iter().enumerate()">#{+ i +}: {+ item +}</li>
+</ul>

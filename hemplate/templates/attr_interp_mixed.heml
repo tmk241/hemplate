@@ -1,0 +1,1 @@
+<div class="safe" +data-url="self.url.clone()" id="item-{+ self.id +}">x</div>

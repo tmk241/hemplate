@@ -1,0 +1,4 @@
+<div>
+  <span h-if="self.ok">Yes</span>
+  <span h-else>No</span>
+</div>

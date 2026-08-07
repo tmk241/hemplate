@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = [
+    "hemplate",
+    "hemplate-axum",
+    "hemplate-core",
+    "hemplate-derive",
+    "hemplate-parser",
+    "tree-sitter-hemplate",
+]
+
+[workspace.package]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/tmk241/hemplate"
+rust-version = "1.91"

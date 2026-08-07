@@ -1,0 +1,1 @@
+<div class="trusted">{+= self.html =+}</div>

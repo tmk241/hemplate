@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html>
+<head><title>Not Found</title></head>
+<body>
+  <h1>404 — Not Found</h1>
+  <p>The path <code>{+ self.path +}</code> does not exist.</p>
+</body>
+</html>

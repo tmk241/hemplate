@@ -1,0 +1,1 @@
+<button class="btn" data-shortcut="ctrl+s" +data-endpoint="self.save_url">Save</button>

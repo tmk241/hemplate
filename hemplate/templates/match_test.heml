@@ -1,0 +1,5 @@
+<template h-match="self.light">
+  <span h-case="Light::Red" class="red">Stop</span>
+  <span h-case="Light::Yellow" class="yellow">Caution</span>
+  <span h-case="Light::Green" class="green">Go</span>
+</template>

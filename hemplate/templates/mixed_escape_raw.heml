@@ -1,0 +1,1 @@
+<div>{+ self.x +} {+= self.x.clone() =+}</div>

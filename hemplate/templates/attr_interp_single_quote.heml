@@ -1,0 +1,1 @@
+<a href='/tags/{+ self.tag +}'>link</a>

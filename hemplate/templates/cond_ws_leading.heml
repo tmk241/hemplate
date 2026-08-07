@@ -1,0 +1,1 @@
+<span>Before</span> <span h-if="self.show">Yes</span>

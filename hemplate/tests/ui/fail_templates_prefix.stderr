@@ -1,0 +1,5 @@
+error: hemplate: #[hemplate = "..."] is relative to templates/, don't include the templates/ prefix
+ --> tests/ui/fail_templates_prefix.rs:6:8
+  |
+6 | struct TemplatesPrefix {
+  |        ^^^^^^^^^^^^^^^

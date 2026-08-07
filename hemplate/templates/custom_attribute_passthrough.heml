@@ -1,0 +1,1 @@
+<div @activate="handler" :status="current" #anchor="main" data-visible="true" ui-state="open" request-get="/api" swap-mode="replace">custom attrs</div>

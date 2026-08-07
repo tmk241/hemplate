@@ -1,0 +1,8 @@
+<template h-match="&self.response">
+  <div h-case="Response::Ok { data, meta: Meta { count, .. } }">
+    {+ count +} results: {+ data +}
+  </div>
+  <div h-case="Response::Err(code, msg)">
+    Error {+ code +}: {+ msg +}
+  </div>
+</template>

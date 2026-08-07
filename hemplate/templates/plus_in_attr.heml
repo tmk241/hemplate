@@ -1,0 +1,1 @@
+<button class="btn" data-action="save" data-shortcut="ctrl+s" onclick="save()">Save</button>

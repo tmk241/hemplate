@@ -1,0 +1,1 @@
+<div class="item-{+ self.id +} status-{+ self.status +}">x</div>

@@ -1,0 +1,5 @@
+<div>
+  <ul h-for="group in &self.groups">
+    <li h-for="item in group">{+ item +}</li>
+  </ul>
+</div>

@@ -1,0 +1,3 @@
+<div +class="self.css_class" +id="self.element_id">
+  <a +href="self.url">{+ self.label +}</a>
+</div>

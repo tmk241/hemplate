@@ -1,0 +1,6 @@
+<div>
+  <img src="logo.png">
+  <br>
+  <input type="text" +value="self.val">
+  <hr>
+</div>

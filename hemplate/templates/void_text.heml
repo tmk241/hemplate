@@ -1,0 +1,7 @@
+<div>
+  <br>text after br
+  <hr>text after hr
+  <wbr>text after wbr
+  <img src="logo.png">alt text
+  <input type="text">label
+</div>

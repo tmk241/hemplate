@@ -1,0 +1,5 @@
+error: hemplate: variant Nonexistent: io error: No such file or directory (os error 2)
+ --> tests/ui/fail_missing_variant_template.rs:5:6
+  |
+5 | enum MissingVariant {
+  |      ^^^^^^^^^^^^^^

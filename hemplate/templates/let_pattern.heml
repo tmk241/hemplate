@@ -1,0 +1,6 @@
+<div h-if="let Some(user) = &self.user">
+  <p>Welcome, {+ user +}</p>
+</div>
+<div h-else>
+  <p>Please log in.</p>
+</div>

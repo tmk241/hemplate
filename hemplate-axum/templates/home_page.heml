@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+<head><title>{+ self.title +}</title></head>
+<body>
+  <h1>{+ self.title +}</h1>
+  <ul>
+    <li h-for="item in &self.items">{+ item +}</li>
+  </ul>
+  <footer h-if="self.show_footer">&copy; 2026 hemplate</footer>
+</body>
+</html>

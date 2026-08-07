@@ -1,0 +1,22 @@
+[package]
+name = "hemplate-derive"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+description = "Derive macro for compiling Hemplate templates into Rust rendering code"
+documentation = "https://docs.rs/hemplate-derive"
+keywords = ["html", "template", "derive", "proc-macro"]
+categories = ["template-engine", "development-tools::procedural-macro-helpers"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }
+
+hemplate-core = { version = "0.1.0", path = "../hemplate-core" }

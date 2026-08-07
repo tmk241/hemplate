@@ -1,0 +1,5 @@
+error: hemplate: io error: No such file or directory (os error 2)
+ --> tests/ui/fail_missing_template.rs:5:8
+  |
+5 | struct Missing {
+  |        ^^^^^^^

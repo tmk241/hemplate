@@ -1,0 +1,316 @@
+//! Codegen dispatch helpers for `{+ expr +}` and `{+= expr =+}`.
+//!
+//! Uses the autoref specialization pattern so the derive macro can emit
+//! a single call site that does the right thing for both `Hemplate`
+//! types (call `render_into` — output is already HTML) and `Display`
+//! types (HTML-escape via `HtmlEscape`).
+//!
+//! **Users never call these directly.** The derive macro generates all
+//! call sites.
+
+use crate::Hemplate;
+use crate::error::HemplateError;
+use crate::escape::HtmlEscape;
+use std::sync::Arc;
+
+// ---------------------------------------------------------------------------
+// Escaped interpolation: {+ expr +}
+// ---------------------------------------------------------------------------
+
+/// Wrapper emitted by codegen for `{+ expr +}`.
+#[doc(hidden)]
+pub struct Escaped<'a, T: ?Sized>(pub &'a T);
+
+// Priority 1 (inherent): Hemplate types render directly — output is safe HTML.
+impl<T: Hemplate + ?Sized> Escaped<'_, T> {
+    /// Render a Hemplate component into the buffer (no escaping).
+    #[doc(hidden)]
+    pub fn render_to(&self, buf: &mut String) -> Result<(), HemplateError> {
+        self.0.render_into(buf)
+    }
+}
+
+/// Fallback for `Display` types in escaped context.
+#[doc(hidden)]
+pub trait EscapedFallback {
+    /// Render a Display value into the buffer with HTML escaping.
+    fn render_to(&self, buf: &mut String) -> Result<(), HemplateError>;
+}
+
+// Priority 2 (trait): Display types get HTML-escaped.
+impl<T: std::fmt::Display + ?Sized> EscapedFallback for Escaped<'_, T> {
+    fn render_to(&self, buf: &mut String) -> Result<(), HemplateError> {
+        use std::fmt::Write;
+        write!(buf, "{}", HtmlEscape(self.0))?;
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Raw interpolation: {+= expr =+}
+// ---------------------------------------------------------------------------
+
+/// Wrapper emitted by codegen for `{+= expr =+}`.
+#[doc(hidden)]
+pub struct Raw<'a, T: ?Sized>(pub &'a T);
+
+// Priority 1 (inherent): Hemplate types should NOT use raw interpolation.
+// The autoref dispatch means `{+ +}` already calls `render_into` for
+// Hemplate types.  Using `{+= =+}` with a Hemplate type is always a
+// mistake — it bypasses the safe dispatch for no benefit.
+impl<T: Hemplate + ?Sized> Raw<'_, T> {
+    /// Compile-time guard: raw interpolation is not allowed for Hemplate types.
+    #[doc(hidden)]
+    pub fn render_to(&self, _buf: &mut String) -> Result<(), HemplateError> {
+        panic!(
+            "hemplate: raw interpolation must not be used with Hemplate types. \
+             Use escaped interpolation instead. \
+             This should have been caught at compile time via RawGuard."
+        );
+    }
+}
+
+/// Fallback for `Display` types in raw context.
+#[doc(hidden)]
+pub trait RawFallback {
+    /// Render a Display value into the buffer without escaping.
+    fn render_to(&self, buf: &mut String) -> Result<(), HemplateError>;
+}
+
+// Priority 2 (trait): Display types output verbatim (no escaping).
+impl<T: std::fmt::Display + ?Sized> RawFallback for Raw<'_, T> {
+    fn render_to(&self, buf: &mut String) -> Result<(), HemplateError> {
+        use std::fmt::Write;
+        write!(buf, "{}", self.0)?;
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Raw interpolation guard: compile error for Hemplate types in {+= =+}
+// ---------------------------------------------------------------------------
+
+/// Emitted by codegen before `Raw::render_to` to catch Hemplate types at
+/// compile time.  The inherent impl returns a distinct type that fails the
+/// `let _: () = ...` assignment, producing a clear type-mismatch error
+/// whose type name IS the error message.
+#[doc(hidden)]
+pub struct RawGuard<'a, T: ?Sized>(pub &'a T);
+
+/// Appears in the compiler error when `{+= =+}` is used with a Hemplate type.
+#[doc(hidden)]
+pub struct RawInterpolationNotAllowedForHemplateTypes;
+
+// Priority 1 (inherent): Hemplate types → return the "error message" type.
+impl<T: Hemplate + ?Sized> RawGuard<'_, T> {
+    #[doc(hidden)]
+    pub fn check(&self) -> RawInterpolationNotAllowedForHemplateTypes {
+        RawInterpolationNotAllowedForHemplateTypes
+    }
+}
+
+/// Fallback: Display types pass the guard (no-op).
+#[doc(hidden)]
+pub trait RawGuardFallback {
+    fn check(&self);
+}
+
+impl<T: std::fmt::Display + ?Sized> RawGuardFallback for RawGuard<'_, T> {
+    #[inline(always)]
+    fn check(&self) {}
+}
+
+// ---------------------------------------------------------------------------
+// Blanket Hemplate impls
+// ---------------------------------------------------------------------------
+
+impl<T: Hemplate + ?Sized> Hemplate for &T {
+    fn render_into(&self, buf: &mut String) -> Result<(), HemplateError> {
+        (*self).render_into(buf)
+    }
+}
+
+impl<T: Hemplate + ?Sized> Hemplate for Box<T> {
+    fn render_into(&self, buf: &mut String) -> Result<(), HemplateError> {
+        (**self).render_into(buf)
+    }
+}
+
+impl<T: Hemplate + ?Sized> Hemplate for Arc<T> {
+    fn render_into(&self, buf: &mut String) -> Result<(), HemplateError> {
+        (**self).render_into(buf)
+    }
+}
+
+impl<T: Hemplate> Hemplate for Option<T> {
+    fn render_into(&self, buf: &mut String) -> Result<(), HemplateError> {
+        if let Some(inner) = self {
+            inner.render_into(buf)?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: Hemplate> Hemplate for Vec<T> {
+    fn render_into(&self, buf: &mut String) -> Result<(), HemplateError> {
+        for item in self {
+            item.render_into(buf)?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: Hemplate> Hemplate for [T] {
+    fn render_into(&self, buf: &mut String) -> Result<(), HemplateError> {
+        for item in self {
+            item.render_into(buf)?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // A minimal Hemplate type for testing dispatch
+    struct TestComponent(String);
+
+    impl Hemplate for TestComponent {
+        fn render_into(&self, buf: &mut String) -> Result<(), HemplateError> {
+            buf.push_str("<b>");
+            buf.push_str(&self.0);
+            buf.push_str("</b>");
+            Ok(())
+        }
+    }
+
+    fn render_to_string(value: &(impl Hemplate + ?Sized)) -> Result<String, HemplateError> {
+        let mut buf = String::new();
+        value.render_into(&mut buf)?;
+        Ok(buf)
+    }
+
+    #[test]
+    fn escaped_hemplate_renders_directly() -> Result<(), HemplateError> {
+        let comp = TestComponent("hello".into());
+        let mut buf = String::new();
+        Escaped(&comp).render_to(&mut buf)?;
+        assert_eq!(buf, "<b>hello</b>");
+        Ok(())
+    }
+
+    #[test]
+    fn escaped_display_html_escapes() -> Result<(), HemplateError> {
+        let text = "<script>alert('xss')</script>";
+        let mut buf = String::new();
+        EscapedFallback::render_to(&Escaped(text), &mut buf)?;
+        assert_eq!(buf, "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;");
+        Ok(())
+    }
+
+    #[test]
+    #[should_panic(expected = "must not be used with Hemplate types")]
+    fn raw_hemplate_panics() {
+        let comp = TestComponent("world".into());
+        let mut buf = String::new();
+        let _ = Raw(&comp).render_to(&mut buf);
+    }
+
+    #[test]
+    fn raw_guard_hemplate_returns_marker_type() {
+        let comp = TestComponent("test".into());
+        // Inherent impl is selected for Hemplate types, returning the marker type.
+        // In codegen, `let _: () = RawGuard(&expr).check()` causes a type mismatch
+        // that prevents compilation of {+= =+} with Hemplate types.
+        let _marker = RawGuard(&comp).check();
+        // If this compiles, the inherent impl was selected (returns marker, not ()).
+        assert_eq!(
+            std::any::type_name_of_val(&_marker),
+            std::any::type_name::<RawInterpolationNotAllowedForHemplateTypes>()
+        );
+    }
+
+    #[test]
+    fn raw_guard_display_is_noop() {
+        let text = "hello";
+        // Trait fallback is selected for Display-only types, returning ().
+        let result: () = RawGuardFallback::check(&RawGuard(text));
+        assert_eq!(result, ());
+    }
+
+    #[test]
+    fn raw_display_no_escaping() -> Result<(), HemplateError> {
+        let text = "<b>bold</b>";
+        let mut buf = String::new();
+        RawFallback::render_to(&Raw(text), &mut buf)?;
+        assert_eq!(buf, "<b>bold</b>");
+        Ok(())
+    }
+
+    // Blanket Hemplate implementations preserve child render order and emptiness.
+
+    #[test]
+    fn option_some_renders() -> Result<(), HemplateError> {
+        let comp = Some(TestComponent("yes".into()));
+        assert_eq!(render_to_string(&comp)?, "<b>yes</b>");
+        Ok(())
+    }
+
+    #[test]
+    fn option_none_renders_empty() -> Result<(), HemplateError> {
+        let comp: Option<TestComponent> = None;
+        assert_eq!(render_to_string(&comp)?, "");
+        Ok(())
+    }
+
+    #[test]
+    fn vec_renders_all() -> Result<(), HemplateError> {
+        let comps = vec![TestComponent("a".into()), TestComponent("b".into())];
+        assert_eq!(render_to_string(&comps)?, "<b>a</b><b>b</b>");
+        Ok(())
+    }
+
+    #[test]
+    fn vec_empty_renders_empty() -> Result<(), HemplateError> {
+        let comps: Vec<TestComponent> = vec![];
+        assert_eq!(render_to_string(&comps)?, "");
+        Ok(())
+    }
+
+    #[test]
+    fn box_renders() -> Result<(), HemplateError> {
+        let comp: Box<TestComponent> = Box::new(TestComponent("boxed".into()));
+        assert_eq!(render_to_string(&comp)?, "<b>boxed</b>");
+        Ok(())
+    }
+
+    #[test]
+    fn arc_renders() -> Result<(), HemplateError> {
+        let comp: Arc<TestComponent> = Arc::new(TestComponent("shared".into()));
+        assert_eq!(render_to_string(&comp)?, "<b>shared</b>");
+        Ok(())
+    }
+
+    #[test]
+    fn ref_renders() -> Result<(), HemplateError> {
+        let comp = TestComponent("ref".into());
+        let r: &TestComponent = &comp;
+        assert_eq!(render_to_string(r)?, "<b>ref</b>");
+        Ok(())
+    }
+
+    #[test]
+    fn slice_renders() -> Result<(), HemplateError> {
+        let comps = vec![TestComponent("x".into()), TestComponent("y".into())];
+        assert_eq!(render_to_string(comps.as_slice())?, "<b>x</b><b>y</b>");
+        Ok(())
+    }
+
+    #[test]
+    fn box_dyn_hemplate_renders() -> Result<(), HemplateError> {
+        let comp: Box<dyn Hemplate> = Box::new(TestComponent("dyn".into()));
+        assert_eq!(render_to_string(comp.as_ref())?, "<b>dyn</b>");
+        Ok(())
+    }
+}

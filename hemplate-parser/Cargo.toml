@@ -1,0 +1,16 @@
+[package]
+name = "hemplate-parser"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+description = "Tree-sitter parser wrapper for Hemplate templates"
+documentation = "https://docs.rs/hemplate-parser"
+keywords = ["html", "parser", "template", "tree-sitter"]
+categories = ["parser-implementations", "development-tools"]
+
+[dependencies]
+tree-sitter = "0.25"
+tree-sitter-hemplate = { version = "0.1.0", path = "../tree-sitter-hemplate" }

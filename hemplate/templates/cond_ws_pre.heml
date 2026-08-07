@@ -1,0 +1,1 @@
+<pre><span h-if="self.debug">DEBUG</span> <span h-else>PROD</span> MODE</pre>

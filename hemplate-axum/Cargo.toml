@@ -1,0 +1,25 @@
+[package]
+name = "hemplate-axum"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+description = "Axum response wrappers for Hemplate templates"
+documentation = "https://docs.rs/hemplate-axum"
+keywords = ["axum", "html", "template", "web"]
+categories = ["template-engine", "web-programming"]
+include = ["src/**", "templates/**", "README.md", "LICENSE"]
+
+[dependencies]
+hemplate-core = { version = "0.1.0", path = "../hemplate-core" }
+axum-core = "0.5"
+http = "1"
+
+[dev-dependencies]
+hemplate = { version = "0.1.0", path = "../hemplate" }
+hemplate-core = { version = "0.1.0", path = "../hemplate-core" }
+axum = "0.8"
+http-body-util = "0.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }

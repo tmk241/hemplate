@@ -1,0 +1,2 @@
+<span h-if="!self.saved" class="unsaved">unsaved</span>
+<span h-else class="saved">saved</span>

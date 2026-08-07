@@ -1,0 +1,5 @@
+error: hemplate: #[hemplate = "..."] must be a relative directory, not an absolute path
+ --> tests/ui/fail_absolute_path.rs:6:8
+  |
+6 | struct AbsolutePath {
+  |        ^^^^^^^^^^^^

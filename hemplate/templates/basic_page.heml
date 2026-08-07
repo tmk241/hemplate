@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head><title>{+ self.title +}</title></head>
+<body>
+  <h1>{+ self.title +}</h1>
+  <div h-if="self.show_content">
+    <p>{+ self.body +}</p>
+  </div>
+  <ul>
+    <li h-for="item in &self.items">{+ item +}</li>
+  </ul>
+</body>
+</html>

@@ -1,0 +1,1 @@
+<span h-if="self.x">X</span> <span h-if="self.y">Y</span>

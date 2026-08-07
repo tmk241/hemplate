@@ -1,0 +1,3 @@
+<ul>
+  <li h-for="item in &self.items">{+ item +}</li>
+</ul>

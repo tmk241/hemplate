@@ -1,0 +1,27 @@
+[package]
+name = "hemplate-core"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+description = "AST, escaping, and rendering primitives for Hemplate templates"
+documentation = "https://docs.rs/hemplate-core"
+keywords = ["html", "template", "rendering", "web"]
+categories = ["template-engine", "web-programming"]
+
+[features]
+surface = []
+
+[dependencies]
+tree-sitter = "0.25"
+hemplate-parser = { version = "0.1.0", path = "../hemplate-parser" }
+thiserror = "2"
+
+[dev-dependencies]
+proptest = "1.10.0"
+proptest-state-machine = "0.7.0"
+
+[package.metadata.docs.rs]
+all-features = true

@@ -1,0 +1,2 @@
+<div>{+= self.html =+}</div>
+<p>{+ self.text +}</p>

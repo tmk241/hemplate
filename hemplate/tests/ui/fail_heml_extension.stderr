@@ -1,0 +1,5 @@
+error: hemplate: #[hemplate = "..."] is a directory within templates/, not a file path (remove the .heml extension)
+ --> tests/ui/fail_heml_extension.rs:6:8
+  |
+6 | struct HemlExtension {
+  |        ^^^^^^^^^^^^^

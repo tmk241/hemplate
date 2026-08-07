@@ -1,0 +1,1 @@
+<!DOCTYPE html><!-- round-trip fixture --><main class="page" +data-id="self.id"><h1>{+ self.title +}</h1><p h-if="self.visible">Ready</p><img src="/logo.png" alt="Logo"><script>const message = "literal";</script></main>

@@ -1,0 +1,9 @@
+<div h-if="self.count > 10">
+  <p>Many</p>
+</div>
+<div h-else-if="self.count > 0">
+  <p>Some</p>
+</div>
+<div h-else>
+  <p>None</p>
+</div>
