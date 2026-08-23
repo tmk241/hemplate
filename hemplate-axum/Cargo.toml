@@ -1,6 +1,6 @@
 [package]
 name = "hemplate-axum"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license.workspace = true
 readme = "README.md"
@@ -13,13 +13,12 @@ categories = ["template-engine", "web-programming"]
 include = ["src/**", "templates/**", "README.md", "LICENSE"]
 
 [dependencies]
-hemplate-core = { version = "0.1.0", path = "../hemplate-core" }
+hemplate-runtime = { version = "0.1.0", path = "../hemplate-runtime" }
 axum-core = "0.5"
 http = "1"
 
 [dev-dependencies]
-hemplate = { version = "0.1.0", path = "../hemplate" }
-hemplate-core = { version = "0.1.0", path = "../hemplate-core" }
+hemplate = { version = "0.2.0", path = "../hemplate" }
 axum = "0.8"
 http-body-util = "0.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }

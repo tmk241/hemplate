@@ -8,13 +8,15 @@ sources consistent.
 
 ## Workspace layout
 
-The main dependency chain is:
+Host-side template compilation follows this dependency chain:
 
 ```text
-tree-sitter-hemplate -> hemplate-parser -> hemplate-core -> hemplate-derive -> hemplate
+tree-sitter-hemplate -> hemplate-parser -> hemplate-core -> hemplate-derive
 ```
 
-`hemplate-axum` provides the optional Axum response integration. Keep changes in
+Generated templates render through `hemplate-runtime`; the `hemplate` facade
+combines that runtime with optional derive and host APIs. `hemplate-axum`
+provides the optional Axum response integration. Keep changes in
 the package that owns the behavior; framework-specific behavior belongs in its
 integration package rather than the grammar, parser, core, derive, or facade.
 
@@ -27,6 +29,7 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-targets --all-features
 cargo deny check licenses sources
+cargo check -p hemplate-wasm-runtime-test --target wasm32-unknown-unknown
 ```
 
 Changes to publishable packages require an archive-based `cargo package` check.

@@ -350,12 +350,12 @@ fn text_content(text: &ast::Text<String>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::HemplateError;
+    use crate::error::BuildError;
 
-    fn parsed_surface(source: &str) -> Result<SurfaceDocument, HemplateError> {
+    fn parsed_surface(source: &str) -> Result<SurfaceDocument, BuildError> {
         let ast = ast::build_ast(std::sync::Arc::new(source.to_string()))?;
         ast.as_ref().map(extract_surface).ok_or_else(|| {
-            HemplateError::Parse(crate::error::ParseError {
+            BuildError::Parse(crate::error::ParseError {
                 message: "parse produced no document".to_string(),
                 byte_offset: 0,
             })
@@ -363,12 +363,12 @@ mod tests {
     }
 
     #[test]
-    fn surface_preserves_custom_attributes() -> Result<(), HemplateError> {
+    fn surface_preserves_custom_attributes() -> Result<(), BuildError> {
         let surface =
             parsed_surface(r#"<form data-role="profile"><input name="title" required></form>"#)?;
 
         let form = surface.forms.first().ok_or_else(|| {
-            HemplateError::Parse(crate::error::ParseError {
+            BuildError::Parse(crate::error::ParseError {
                 message: "expected form surface".to_string(),
                 byte_offset: 0,
             })
@@ -384,7 +384,7 @@ mod tests {
     }
 
     #[test]
-    fn surface_records_keyed_for_scope() -> Result<(), HemplateError> {
+    fn surface_records_keyed_for_scope() -> Result<(), BuildError> {
         let surface = parsed_surface(
             r#"<template h-for="todo in self.todos" h-key="todo.id"><button name="delete">x</button></template>"#,
         )?;
@@ -405,7 +405,7 @@ mod tests {
     }
 
     #[test]
-    fn surface_records_number_control_metadata() -> Result<(), HemplateError> {
+    fn surface_records_number_control_metadata() -> Result<(), BuildError> {
         let surface = parsed_surface(
             r#"<form><input name="count" type="number" min="1" max="10" step="1"></form>"#,
         )?;

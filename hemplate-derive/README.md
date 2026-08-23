@@ -13,7 +13,8 @@ The derive macro:
 - registers template files as compile-time dependencies with `include_bytes!`
 
 This crate does not expose runtime rendering APIs; use `hemplate` for
-application code and `hemplate-core` for lower-level AST/render tooling.
+application code, `hemplate-runtime` for the target rendering contract, and
+`hemplate-core` for host-side AST tooling.
 
 ## License
 

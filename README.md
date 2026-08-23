@@ -8,7 +8,7 @@ Add Hemplate to your project:
 
 ```toml
 [dependencies]
-hemplate = "0.1.0"
+hemplate = "0.2.0"
 ```
 
 Define a view:
@@ -21,7 +21,7 @@ struct HelloView {
     name: String,
 }
 
-fn main() -> Result<(), hemplate::error::HemplateError> {
+fn main() -> Result<(), hemplate::RenderError> {
     let view = HelloView {
         name: "World".into(),
     };
@@ -60,12 +60,24 @@ Hemplate supports:
 
 See the crate documentation and tests for the complete supported behavior.
 
+## Host compilation and target rendering
+
+The default `hemplate` features provide both derive support and host-side AST APIs. For constrained targets such as `wasm32-unknown-unknown`, disable the defaults and enable only the independent derive feature:
+
+```toml
+[dependencies]
+hemplate = { version = "0.2.0", default-features = false, features = ["derive"] }
+```
+
+Template parsing and proc-macro code generation still run on the host. Generated code renders through the parser-free `hemplate-runtime` crate on the target, so Tree-sitter is not linked into the target dependency graph.
+
 ## Workspace
 
 | Package | Purpose |
 | --- | --- |
 | `hemplate` | Application-facing facade and derive export |
-| `hemplate-core` | Template AST, rendering traits, and HTML escaping |
+| `hemplate-runtime` | Parser-free rendering, interpolation, and HTML escaping |
+| `hemplate-core` | Template AST and build-time surface extraction |
 | `hemplate-derive` | `Hemplate` derive macro |
 | `hemplate-parser` | Tree-sitter parser wrapper |
 | `tree-sitter-hemplate` | Hemplate grammar and Rust bindings |

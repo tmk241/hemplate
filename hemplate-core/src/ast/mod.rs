@@ -3,7 +3,7 @@ use std::{fs, path::Path, sync::Arc};
 use hemplate_parser::parse_template;
 use tree_sitter::{Node, Range};
 
-use crate::error::{ExtractionError, HemplateError, ParseError};
+use crate::error::{BuildError, ExtractionError, ParseError};
 
 /// AST node types for attributes.
 pub mod attribute;
@@ -115,7 +115,7 @@ impl<S: AsRef<str>, T> RangeNode<S, T> {
 }
 
 /// Parse source text into a hemplate AST.
-pub fn build_ast<S>(input: Arc<S>) -> Result<Option<RangeNode<S, Document<S>>>, HemplateError>
+pub fn build_ast<S>(input: Arc<S>) -> Result<Option<RangeNode<S, Document<S>>>, BuildError>
 where
     S: AsRef<str> + Clone,
 {
@@ -129,12 +129,10 @@ where
 }
 
 /// Read a file and parse it into a hemplate AST.
-pub fn build_ast_from_file(
-    path: &Path,
-) -> Result<RangeNode<String, Document<String>>, HemplateError> {
+pub fn build_ast_from_file(path: &Path) -> Result<RangeNode<String, Document<String>>, BuildError> {
     let source = fs::read_to_string(path)?;
     build_ast(Arc::new(source))?.ok_or_else(|| {
-        HemplateError::Extraction(ExtractionError {
+        BuildError::Extraction(ExtractionError {
             node_kind: "document".to_string(),
             message: format!("failed to extract document from {}", path.display()),
         })

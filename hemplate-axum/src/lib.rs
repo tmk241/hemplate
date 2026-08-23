@@ -1,25 +1,21 @@
-//! Axum response wrappers for Hemplate views.
+//! axum integration for hemplate templates.
 //!
-//! ```
-//! use hemplate_axum::{HemplateExt, HtmlTemplate};
-//! use hemplate_core::{error::HemplateError, Hemplate};
+//! Wrap any [`Hemplate`] type in [`HtmlTemplate`] (or [`StatusTemplate`]) to
+//! return it from an axum handler:
 //!
-//! struct HomeView;
-//!
-//! impl Hemplate for HomeView {
-//!     fn render_into(&self, output: &mut String) -> Result<(), HemplateError> {
-//!         output.push_str("<h1>Home</h1>");
-//!         Ok(())
-//!     }
+//! ```ignore
+//! async fn home() -> HtmlTemplate<HomeView> {
+//!     HomeView { title: "Welcome".into() }.into()
 //! }
-//!
-//! let response: HtmlTemplate<HomeView> = HomeView.into_html();
 //! ```
 //!
-//! Explicit wrapper types keep HTTP behavior visible at the handler boundary.
+//! No blanket `impl<T: Hemplate> IntoResponse for T` exists — Rust's coherence
+//! rules forbid it (foreign trait + foreign type + overlap with axum's existing
+//! blanket impls). The wrapper is the canonical workaround, matching axum's own
+//! `Json` / `Html` / `Form` newtypes.
 
 use axum_core::response::{IntoResponse, Response};
-use hemplate_core::Hemplate;
+use hemplate_runtime::Hemplate;
 use http::{header, StatusCode};
 
 /// Wrapper that converts a [`Hemplate`] type into a 200 OK axum [`Response`]
@@ -29,19 +25,10 @@ use http::{header, StatusCode};
 /// applications wanting different error policy should wrap the template
 /// themselves rather than reaching for configuration on this type.
 ///
-/// ```
-/// use hemplate_axum::HtmlTemplate;
-/// use hemplate_core::{error::HemplateError, Hemplate};
-///
-/// struct Page;
-/// impl Hemplate for Page {
-///     fn render_into(&self, output: &mut String) -> Result<(), HemplateError> {
-///         output.push_str("<p>Ready</p>");
-///         Ok(())
-///     }
+/// ```ignore
+/// async fn home() -> HtmlTemplate<HomePage> {
+///     HomePage { title: "Welcome".into() }.into_html()
 /// }
-///
-/// let response = HtmlTemplate(Page);
 /// ```
 pub struct HtmlTemplate<T: Hemplate>(pub T);
 
@@ -68,20 +55,10 @@ impl<T: Hemplate> IntoResponse for HtmlTemplate<T> {
 
 /// Wrapper for pairing a [`Hemplate`] type with an HTTP status code.
 ///
-/// ```
-/// use hemplate_axum::StatusTemplate;
-/// use hemplate_core::{error::HemplateError, Hemplate};
-/// use http::StatusCode;
-///
-/// struct NotFound;
-/// impl Hemplate for NotFound {
-///     fn render_into(&self, output: &mut String) -> Result<(), HemplateError> {
-///         output.push_str("<h1>Not found</h1>");
-///         Ok(())
-///     }
+/// ```ignore
+/// async fn not_found() -> StatusTemplate<NotFoundPage> {
+///     NotFoundPage { path: "/oops".into() }.with_status(StatusCode::NOT_FOUND)
 /// }
-///
-/// let response = StatusTemplate(StatusCode::NOT_FOUND, NotFound);
 /// ```
 pub struct StatusTemplate<T: Hemplate>(pub StatusCode, pub T);
 
@@ -103,24 +80,17 @@ impl<T: Hemplate> IntoResponse for StatusTemplate<T> {
     }
 }
 
-/// Extension methods for constructing response wrappers without naming their
-/// concrete generic types.
+/// Ergonomic extension methods for any [`Hemplate`] type — chainable wrapper
+/// construction without naming the wrapper type at the call site.
 ///
-/// ```
-/// use hemplate_axum::HemplateExt;
-/// use hemplate_core::{error::HemplateError, Hemplate};
-/// use http::StatusCode;
-///
-/// struct Page;
-/// impl Hemplate for Page {
-///     fn render_into(&self, output: &mut String) -> Result<(), HemplateError> {
-///         output.push_str("<p>Ready</p>");
-///         Ok(())
-///     }
+/// ```ignore
+/// async fn home() -> impl IntoResponse {
+///     HomePage { title: "Welcome".into() }.into_html()
 /// }
 ///
-/// let ok = Page.into_html();
-/// let not_found = Page.with_status(StatusCode::NOT_FOUND);
+/// async fn not_found() -> impl IntoResponse {
+///     NotFoundPage { path: "/oops".into() }.with_status(StatusCode::NOT_FOUND)
+/// }
 /// ```
 pub trait HemplateExt: Hemplate + Sized {
     /// Wrap this template as a 200 OK HTML response.
@@ -139,7 +109,7 @@ impl<T: Hemplate> HemplateExt for T {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hemplate_core::error::HemplateError;
+    use hemplate_runtime::RenderError;
     use http_body_util::BodyExt;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -147,7 +117,7 @@ mod tests {
     struct TestView;
 
     impl Hemplate for TestView {
-        fn render_into(&self, buf: &mut String) -> Result<(), HemplateError> {
+        fn render_into(&self, buf: &mut String) -> Result<(), RenderError> {
             buf.push_str("<h1>Hello</h1>");
             Ok(())
         }
@@ -179,13 +149,13 @@ mod tests {
         Ok(())
     }
 
-    // --- Render errors become 500 responses ---
+    // --- S89: Render error → 500 INTERNAL_SERVER_ERROR ---
 
     struct FailView;
 
     impl Hemplate for FailView {
-        fn render_into(&self, _buf: &mut String) -> Result<(), HemplateError> {
-            Err(HemplateError::Fmt(std::fmt::Error))
+        fn render_into(&self, _buf: &mut String) -> Result<(), RenderError> {
+            Err(RenderError::Fmt(std::fmt::Error))
         }
     }
 

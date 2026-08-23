@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use hemplate_core::ast::build_ast;
 use hemplate_core::ast::build_ast_from_file;
-use hemplate_core::error::HemplateError;
+use hemplate_core::error::BuildError;
 
 /// Malformed or edge-case inputs must not panic.
 /// We only assert that build_ast returns Ok(Some) or Ok(None) without crashing.
@@ -77,7 +77,7 @@ fn missing_file_returns_io_error() {
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(
-        matches!(err, HemplateError::Io(_)),
+        matches!(err, BuildError::Io(_)),
         "expected IoError, got: {:?}",
         err
     );
@@ -86,14 +86,14 @@ fn missing_file_returns_io_error() {
 #[test]
 fn hemplate_error_display_io() {
     let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
-    let err = HemplateError::Io(io_err);
+    let err = BuildError::Io(io_err);
     let msg = format!("{}", err);
     assert!(msg.contains("io error"), "got: {}", msg);
 }
 
 #[test]
 fn hemplate_error_display_extraction() {
-    let err = HemplateError::Extraction(hemplate_core::error::ExtractionError {
+    let err = BuildError::Extraction(hemplate_core::error::ExtractionError {
         node_kind: "start_tag".to_string(),
         message: "tag_name not found".to_string(),
     });
@@ -104,7 +104,7 @@ fn hemplate_error_display_extraction() {
 
 #[test]
 fn hemplate_error_display_parse() {
-    let err = HemplateError::Parse(hemplate_core::error::ParseError {
+    let err = BuildError::Parse(hemplate_core::error::ParseError {
         byte_offset: 42,
         message: "unexpected token".to_string(),
     });
@@ -142,8 +142,8 @@ fn parse_error_converts_to_hemplate_error() {
         byte_offset: 0,
         message: "test".to_string(),
     };
-    let hemplate_err: HemplateError = parse_err.into();
-    assert!(matches!(hemplate_err, HemplateError::Parse(_)));
+    let hemplate_err: BuildError = parse_err.into();
+    assert!(matches!(hemplate_err, BuildError::Parse(_)));
 }
 
 #[test]
@@ -152,13 +152,13 @@ fn extraction_error_converts_to_hemplate_error() {
         node_kind: "x".to_string(),
         message: "y".to_string(),
     };
-    let hemplate_err: HemplateError = ext_err.into();
-    assert!(matches!(hemplate_err, HemplateError::Extraction(_)));
+    let hemplate_err: BuildError = ext_err.into();
+    assert!(matches!(hemplate_err, BuildError::Extraction(_)));
 }
 
 #[test]
 fn io_error_converts_to_hemplate_error() {
     let io_err = std::io::Error::other("test");
-    let hemplate_err: HemplateError = io_err.into();
-    assert!(matches!(hemplate_err, HemplateError::Io(_)));
+    let hemplate_err: BuildError = io_err.into();
+    assert!(matches!(hemplate_err, BuildError::Io(_)));
 }

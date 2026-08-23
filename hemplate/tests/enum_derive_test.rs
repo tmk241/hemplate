@@ -137,7 +137,7 @@ fn enum_dir_override_unit_variant() {
 // ============================================================================
 
 #[test]
-fn enum_render_convenience_works() -> Result<(), hemplate::error::HemplateError> {
+fn enum_render_convenience_works() -> Result<(), hemplate::RenderError> {
     let s = Status::Active { name: "Bob".into() };
     let html = s.render()?;
     assert!(html.contains("Active: Bob"), "got: {}", html);

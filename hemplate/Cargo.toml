@@ -1,6 +1,6 @@
 [package]
 name = "hemplate"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license.workspace = true
 readme = "README.md"
@@ -11,9 +11,15 @@ documentation = "https://docs.rs/hemplate"
 keywords = ["html", "template", "rendering", "web"]
 categories = ["template-engine", "web-programming"]
 
+[features]
+default = ["derive", "host"]
+derive = ["dep:hemplate-derive"]
+host = ["dep:hemplate-core"]
+
 [dependencies]
-hemplate-core = { version = "0.1.0", path = "../hemplate-core" }
-hemplate-derive = { version = "0.1.0", path = "../hemplate-derive" }
+hemplate-runtime = { version = "0.1.0", path = "../hemplate-runtime" }
+hemplate-core = { version = "0.2.0", path = "../hemplate-core", optional = true }
+hemplate-derive = { version = "0.2.0", path = "../hemplate-derive", optional = true }
 
 [dev-dependencies]
 trybuild = "1"

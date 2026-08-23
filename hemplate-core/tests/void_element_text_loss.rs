@@ -5,10 +5,10 @@
 
 use hemplate_core::ast::text_extractor::TextExtractor;
 use hemplate_core::ast::{Document, RangeNode, build_ast};
-use hemplate_core::error::{ExtractionError, HemplateError};
+use hemplate_core::error::{BuildError, ExtractionError};
 use std::sync::Arc;
 
-fn roundtrip(input: &str) -> Result<String, HemplateError> {
+fn roundtrip(input: &str) -> Result<String, BuildError> {
     let doc: RangeNode<String, Document<String>> = build_ast(Arc::new(input.to_string()))?
         .ok_or_else(|| ExtractionError {
             node_kind: "document".to_string(),
@@ -24,7 +24,7 @@ fn roundtrip(input: &str) -> Result<String, HemplateError> {
 }
 
 #[test]
-fn void_wbr_text_after() -> Result<(), HemplateError> {
+fn void_wbr_text_after() -> Result<(), BuildError> {
     assert_eq!(
         roundtrip("<p>hello<wbr>world</p>")?,
         "<p>hello<wbr>world</p>"
@@ -33,13 +33,13 @@ fn void_wbr_text_after() -> Result<(), HemplateError> {
 }
 
 #[test]
-fn void_br_text_after() -> Result<(), HemplateError> {
+fn void_br_text_after() -> Result<(), BuildError> {
     assert_eq!(roundtrip("<p>a<br>b</p>")?, "<p>a<br>b</p>");
     Ok(())
 }
 
 #[test]
-fn void_img_text_after() -> Result<(), HemplateError> {
+fn void_img_text_after() -> Result<(), BuildError> {
     assert_eq!(
         roundtrip(r#"<p>a<img src="x" alt="pic">b</p>"#)?,
         r#"<p>a<img src="x" alt="pic">b</p>"#
@@ -48,7 +48,7 @@ fn void_img_text_after() -> Result<(), HemplateError> {
 }
 
 #[test]
-fn void_input_text_after() -> Result<(), HemplateError> {
+fn void_input_text_after() -> Result<(), BuildError> {
     assert_eq!(
         roundtrip(r#"<p>text<input type="text">more</p>"#)?,
         r#"<p>text<input type="text">more</p>"#
@@ -57,19 +57,19 @@ fn void_input_text_after() -> Result<(), HemplateError> {
 }
 
 #[test]
-fn void_hr_text_after() -> Result<(), HemplateError> {
+fn void_hr_text_after() -> Result<(), BuildError> {
     assert_eq!(roundtrip("<div><hr>after</div>")?, "<div><hr>after</div>");
     Ok(())
 }
 
 #[test]
-fn void_br_toplevel_text_after() -> Result<(), HemplateError> {
+fn void_br_toplevel_text_after() -> Result<(), BuildError> {
     assert_eq!(roundtrip("before<br>after")?, "before<br>after");
     Ok(())
 }
 
 #[test]
-fn void_br_chain_text_between() -> Result<(), HemplateError> {
+fn void_br_chain_text_between() -> Result<(), BuildError> {
     assert_eq!(
         roundtrip("<p>one<br>two<br>three</p>")?,
         "<p>one<br>two<br>three</p>"
@@ -78,7 +78,7 @@ fn void_br_chain_text_between() -> Result<(), HemplateError> {
 }
 
 #[test]
-fn void_br_between_elements_preserved() -> Result<(), HemplateError> {
+fn void_br_between_elements_preserved() -> Result<(), BuildError> {
     // Element siblings after void elements already work — this is the control case.
     assert_eq!(
         roundtrip("<div>before</div><br><div>after</div>")?,
@@ -88,13 +88,13 @@ fn void_br_between_elements_preserved() -> Result<(), HemplateError> {
 }
 
 #[test]
-fn void_alone_no_regression() -> Result<(), HemplateError> {
+fn void_alone_no_regression() -> Result<(), BuildError> {
     assert_eq!(roundtrip("<br>")?, "<br>");
     Ok(())
 }
 
 #[test]
-fn void_meta_text_after() -> Result<(), HemplateError> {
+fn void_meta_text_after() -> Result<(), BuildError> {
     assert_eq!(
         roundtrip(r#"<head><meta charset="utf-8">title</head>"#)?,
         r#"<head><meta charset="utf-8">title</head>"#
@@ -103,7 +103,7 @@ fn void_meta_text_after() -> Result<(), HemplateError> {
 }
 
 #[test]
-fn void_embed_text_after() -> Result<(), HemplateError> {
+fn void_embed_text_after() -> Result<(), BuildError> {
     assert_eq!(
         roundtrip(r#"<div><embed type="text/html">content</div>"#)?,
         r#"<div><embed type="text/html">content</div>"#
@@ -112,7 +112,7 @@ fn void_embed_text_after() -> Result<(), HemplateError> {
 }
 
 #[test]
-fn void_multiple_adjacent() -> Result<(), HemplateError> {
+fn void_multiple_adjacent() -> Result<(), BuildError> {
     // Multiple void elements in sequence with text between each.
     assert_eq!(
         roundtrip("<p>a<br>b<wbr>c<br>d</p>")?,

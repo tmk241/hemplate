@@ -102,7 +102,7 @@ fn gen_interpolated_attr(name: &str, raw_value: &str) -> TokenStream {
                 match syn::parse_str::<syn::Expr>(expr_str) {
                     Ok(expr) => {
                         parts.push(quote! {
-                            std::fmt::Write::write_fmt(buf, format_args!("{}", ::hemplate::HtmlEscape(&(#expr))))?;
+                            std::fmt::Write::write_fmt(buf, format_args!("{}", ::hemplate::__runtime::HtmlEscape(&(#expr))))?;
                         });
                     }
                     Err(e) => {
@@ -143,7 +143,7 @@ pub(crate) fn gen_dynamic_attr(da: &DynamicAttribute<String>) -> TokenStream {
     match syn::parse_str::<syn::Expr>(expr_str) {
         Ok(expr) => quote! {
             buf.push_str(concat!(" ", #attr_name, "=\""));
-            std::fmt::Write::write_fmt(buf, format_args!("{}", ::hemplate::HtmlEscape(&(#expr))))?;
+            std::fmt::Write::write_fmt(buf, format_args!("{}", ::hemplate::__runtime::HtmlEscape(&(#expr))))?;
             buf.push_str("\"");
         },
         Err(e) => {

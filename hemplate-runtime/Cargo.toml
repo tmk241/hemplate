@@ -1,0 +1,16 @@
+[package]
+name = "hemplate-runtime"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+description = "Parser-free rendering contract for Hemplate templates"
+documentation = "https://docs.rs/hemplate-runtime"
+keywords = ["html", "template", "rendering", "wasm"]
+categories = ["template-engine", "web-programming"]
+include = ["src/**", "README.md", "LICENSE"]
+
+[dependencies]
+thiserror = "2"

@@ -41,7 +41,7 @@ fn test_conditional_false() {
 }
 
 #[test]
-fn test_render_convenience() -> Result<(), hemplate::error::HemplateError> {
+fn test_render_convenience() -> Result<(), hemplate::RenderError> {
     let page = BasicPage {
         title: "Hi".into(),
         body: "There".into(),

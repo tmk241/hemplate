@@ -1,10 +1,11 @@
 //! Whitespace condense logic for hemplate codegen.
 //!
-//! Normal-flow whitespace is condensed while preserving spacing that affects HTML output:
-//! - whitespace-only text between elements with a newline is removed;
-//! - leading, trailing, and comment-adjacent whitespace-only text is removed;
-//! - other consecutive whitespace becomes one space;
-//! - `<pre>` and `<textarea>` content remains verbatim.
+//! Implements a Vue-style `condense` strategy:
+//! - Whitespace-only text between elements with newline → removed
+//! - First/last child whitespace-only text → removed
+//! - Adjacent to comments → removed
+//! - All other consecutive whitespace → single space
+//! - `<pre>`/`<textarea>` content preserved verbatim
 
 use hemplate_core::ast::*;
 use quote::quote;
@@ -44,7 +45,7 @@ pub(crate) fn should_remove_ws_text(
     let prev_comment = matches!(prev, HemplateNode::Comment(_));
     let next_elem = matches!(next, HemplateNode::Element(_));
     let next_comment = matches!(next, HemplateNode::Comment(_));
-    // Normal-flow whitespace condensation:
+    // Vue's condense rules (compiler-core/src/parser.ts:condenseWhitespace):
     // prev=COMMENT && (next=COMMENT || next=ELEMENT) → remove
     if prev_comment && (next_elem || next_comment) {
         return true;
@@ -92,7 +93,7 @@ pub(crate) fn gen_text_condensed(stmts: &mut Vec<Stmt>, text: &Text<String>) {
                 match syn::parse_str::<syn::Expr>(interp.0.content()) {
                     Ok(expr) => {
                         stmts.push(Stmt::Dynamic(quote! {
-                            ::hemplate::render::Escaped(&(#expr)).render_to(buf)?;
+                            ::hemplate::__runtime::render::Escaped(&(#expr)).render_to(buf)?;
                         }));
                     }
                     Err(e) => {
@@ -111,8 +112,8 @@ pub(crate) fn gen_text_condensed(stmts: &mut Vec<Stmt>, text: &Text<String>) {
                     Ok(expr) => {
                         stmts.push(Stmt::Dynamic(quote! {
                             {
-                                let _: () = ::hemplate::render::RawGuard(&(#expr)).check();
-                                ::hemplate::render::Raw(&(#expr)).render_to(buf)?;
+                                let _: () = ::hemplate::__runtime::render::RawGuard(&(#expr)).check();
+                                ::hemplate::__runtime::render::Raw(&(#expr)).render_to(buf)?;
                             }
                         }));
                     }
@@ -145,7 +146,7 @@ pub(crate) fn gen_text_pre(stmts: &mut Vec<Stmt>, text: &Text<String>, is_first_
                 match syn::parse_str::<syn::Expr>(interp.0.content()) {
                     Ok(expr) => {
                         stmts.push(Stmt::Dynamic(quote! {
-                            ::hemplate::render::Escaped(&(#expr)).render_to(buf)?;
+                            ::hemplate::__runtime::render::Escaped(&(#expr)).render_to(buf)?;
                         }));
                     }
                     Err(e) => {
@@ -163,8 +164,8 @@ pub(crate) fn gen_text_pre(stmts: &mut Vec<Stmt>, text: &Text<String>, is_first_
                     Ok(expr) => {
                         stmts.push(Stmt::Dynamic(quote! {
                             {
-                                let _: () = ::hemplate::render::RawGuard(&(#expr)).check();
-                                ::hemplate::render::Raw(&(#expr)).render_to(buf)?;
+                                let _: () = ::hemplate::__runtime::render::RawGuard(&(#expr)).check();
+                                ::hemplate::__runtime::render::Raw(&(#expr)).render_to(buf)?;
                             }
                         }));
                     }

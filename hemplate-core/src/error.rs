@@ -1,10 +1,10 @@
-//! Error types for hemplate-core.
+//! Host-side errors for parsing and extracting hemplate templates.
 
 use thiserror::Error;
 
-/// Top-level error type for hemplate operations.
+/// Top-level error type for host-side template processing.
 #[derive(Debug, Error)]
-pub enum HemplateError {
+pub enum BuildError {
     /// A parse error occurred.
     #[error("parse error: {0}")]
     Parse(#[from] ParseError),
@@ -14,9 +14,6 @@ pub enum HemplateError {
     /// An I/O error occurred.
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
-    /// A formatting error occurred during rendering.
-    #[error("fmt error: {0}")]
-    Fmt(#[from] std::fmt::Error),
 }
 
 /// An error that occurs during template parsing.

@@ -6,7 +6,10 @@ members = [
     "hemplate-core",
     "hemplate-derive",
     "hemplate-parser",
+    "hemplate-runtime",
     "tree-sitter-hemplate",
+    "tests/default-runtime",
+    "tests/wasm-runtime",
 ]
 
 [workspace.package]

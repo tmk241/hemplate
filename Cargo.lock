@@ -231,21 +231,22 @@ checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
 name = "hemplate"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hemplate-core",
  "hemplate-derive",
+ "hemplate-runtime",
  "trybuild",
 ]
 
 [[package]]
 name = "hemplate-axum"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "axum",
  "axum-core",
  "hemplate",
- "hemplate-core",
+ "hemplate-runtime",
  "http",
  "http-body-util",
  "tokio",
@@ -253,7 +254,7 @@ dependencies = [
 
 [[package]]
 name = "hemplate-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hemplate-parser",
  "proptest",
@@ -263,8 +264,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "hemplate-derive"
+name = "hemplate-default-runtime-test"
 version = "0.1.0"
+dependencies = [
+ "hemplate",
+]
+
+[[package]]
+name = "hemplate-derive"
+version = "0.2.0"
 dependencies = [
  "hemplate-core",
  "proc-macro2",
@@ -278,6 +286,20 @@ version = "0.1.0"
 dependencies = [
  "tree-sitter",
  "tree-sitter-hemplate",
+]
+
+[[package]]
+name = "hemplate-runtime"
+version = "0.1.0"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
+name = "hemplate-wasm-runtime-test"
+version = "0.1.0"
+dependencies = [
+ "hemplate",
 ]
 
 [[package]]

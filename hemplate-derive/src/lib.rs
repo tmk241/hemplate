@@ -55,17 +55,24 @@ fn gen_struct_impl(
     let body = codegen::generate_body(ast);
     let template_size_hint = ast.content().len();
 
-    // Register the template as a compiler input so Cargo rebuilds when it
-    // changes. The anonymous constant is optimized away.
+    // Emit a dummy `include_bytes!` so rustc registers the template file as a
+    // dependency.  Without this, cargo cannot detect .heml changes because the
+    // proc macro reads via `fs::read_to_string` which is invisible to the build
+    // system.  `include_bytes!` is a compiler built-in that automatically adds
+    // the referenced file to cargo's dependency graph — the same technique used
+    // by Askama.  The `const _` is optimised away; no bytes end up in the binary.
+    //
+    // See rust-lang/rust#99515 — `proc_macro::tracked_path` would be the proper
+    // API but it has been nightly-only since 2021 with no stabilisation date.
     let output = quote! {
         const _: &[u8] = ::core::include_bytes!(#template_path);
 
-        impl ::hemplate::Hemplate for #name {
-            fn render_into(&self, buf: &mut String) -> Result<(), ::hemplate::error::HemplateError> {
+        impl ::hemplate::__runtime::Hemplate for #name {
+            fn render_into(&self, buf: &mut String) -> Result<(), ::hemplate::__runtime::error::RenderError> {
                 use std::fmt::Write as _;
-                use ::hemplate::render::EscapedFallback as _;
-                use ::hemplate::render::RawFallback as _;
-                use ::hemplate::render::RawGuardFallback as _;
+                use ::hemplate::__runtime::render::EscapedFallback as _;
+                use ::hemplate::__runtime::render::RawFallback as _;
+                use ::hemplate::__runtime::render::RawGuardFallback as _;
                 #body
                 Ok(())
             }
@@ -113,11 +120,11 @@ fn gen_enum_impl(
             // produce a clear type error at the call site.
             match_arms.push(quote! {
                 #name::#variant_ident(_inner) => {
-                    ::hemplate::Hemplate::render_into(_inner, buf)?;
+                    ::hemplate::__runtime::Hemplate::render_into(_inner, buf)?;
                 }
             });
             size_hint_arms.push(quote! {
-                #name::#variant_ident(_inner) => ::hemplate::Hemplate::size_hint(_inner),
+                #name::#variant_ident(_inner) => ::hemplate::__runtime::Hemplate::size_hint(_inner),
             });
             continue;
         }
@@ -206,12 +213,12 @@ fn gen_enum_impl(
     let output = quote! {
         #(#includes)*
 
-        impl ::hemplate::Hemplate for #name {
-            fn render_into(&self, buf: &mut String) -> Result<(), ::hemplate::error::HemplateError> {
+        impl ::hemplate::__runtime::Hemplate for #name {
+            fn render_into(&self, buf: &mut String) -> Result<(), ::hemplate::__runtime::error::RenderError> {
                 use std::fmt::Write as _;
-                use ::hemplate::render::EscapedFallback as _;
-                use ::hemplate::render::RawFallback as _;
-                use ::hemplate::render::RawGuardFallback as _;
+                use ::hemplate::__runtime::render::EscapedFallback as _;
+                use ::hemplate::__runtime::render::RawFallback as _;
+                use ::hemplate::__runtime::render::RawGuardFallback as _;
                 match self {
                     #(#match_arms)*
                 }
