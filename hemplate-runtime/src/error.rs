@@ -7,5 +7,5 @@ use thiserror::Error;
 pub enum RenderError {
     /// Formatting a dynamic value failed.
     #[error("fmt error: {0}")]
-    Fmt(#[from] std::fmt::Error),
+    Fmt(#[from] core::fmt::Error),
 }

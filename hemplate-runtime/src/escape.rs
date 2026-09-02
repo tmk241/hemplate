@@ -1,6 +1,6 @@
 //! HTML escaping utility.
 
-use std::fmt::{self, Write as _};
+use core::fmt::{self, Write as _};
 
 /// Wrapper that HTML-escapes the Display output of the inner value.
 pub struct HtmlEscape<T: fmt::Display>(pub T);
@@ -32,6 +32,7 @@ impl fmt::Write for EscapeWriter<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::string::{String, ToString};
 
     struct FailingWriter;
 

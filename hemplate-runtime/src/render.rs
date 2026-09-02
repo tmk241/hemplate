@@ -11,15 +11,14 @@
 use crate::Hemplate;
 use crate::error::RenderError;
 use crate::escape::HtmlEscape;
-use std::fmt;
-use std::sync::Arc;
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
+use core::fmt;
 
-struct RenderBuffer<'a>(&'a mut String);
+struct RenderBuffer<'a>(&'a mut dyn fmt::Write);
 
 impl fmt::Write for RenderBuffer<'_> {
     fn write_str(&mut self, text: &str) -> fmt::Result {
-        self.0.push_str(text);
-        Ok(())
+        self.0.write_str(text)
     }
 }
 
@@ -35,7 +34,7 @@ pub struct Escaped<'a, T: ?Sized>(pub &'a T);
 impl<T: Hemplate + ?Sized> Escaped<'_, T> {
     /// Render a Hemplate component into the buffer (no escaping).
     #[doc(hidden)]
-    pub fn render_to(&self, buf: &mut String) -> Result<(), RenderError> {
+    pub fn render_to(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
         self.0.render_into(buf)
     }
 }
@@ -44,12 +43,12 @@ impl<T: Hemplate + ?Sized> Escaped<'_, T> {
 #[doc(hidden)]
 pub trait EscapedFallback {
     /// Render a Display value into the buffer with HTML escaping.
-    fn render_to(&self, buf: &mut String) -> Result<(), RenderError>;
+    fn render_to(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError>;
 }
 
 // Priority 2 (trait): Display types get HTML-escaped.
-impl<T: std::fmt::Display + ?Sized> EscapedFallback for Escaped<'_, T> {
-    fn render_to(&self, buf: &mut String) -> Result<(), RenderError> {
+impl<T: fmt::Display + ?Sized> EscapedFallback for Escaped<'_, T> {
+    fn render_to(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
         use fmt::Write as _;
         write!(RenderBuffer(buf), "{}", HtmlEscape(self.0))?;
         Ok(())
@@ -71,7 +70,7 @@ pub struct Raw<'a, T: ?Sized>(pub &'a T);
 impl<T: Hemplate + ?Sized> Raw<'_, T> {
     /// Compile-time guard: raw interpolation is not allowed for Hemplate types.
     #[doc(hidden)]
-    pub fn render_to(&self, _buf: &mut String) -> Result<(), RenderError> {
+    pub fn render_to(&self, _buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
         panic!(
             "hemplate: raw interpolation must not be used with Hemplate types. \
              Use escaped interpolation instead. \
@@ -84,12 +83,12 @@ impl<T: Hemplate + ?Sized> Raw<'_, T> {
 #[doc(hidden)]
 pub trait RawFallback {
     /// Render a Display value into the buffer without escaping.
-    fn render_to(&self, buf: &mut String) -> Result<(), RenderError>;
+    fn render_to(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError>;
 }
 
 // Priority 2 (trait): Display types output verbatim (no escaping).
-impl<T: std::fmt::Display + ?Sized> RawFallback for Raw<'_, T> {
-    fn render_to(&self, buf: &mut String) -> Result<(), RenderError> {
+impl<T: fmt::Display + ?Sized> RawFallback for Raw<'_, T> {
+    fn render_to(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
         use fmt::Write as _;
         write!(RenderBuffer(buf), "{}", self.0)?;
         Ok(())
@@ -125,7 +124,7 @@ pub trait RawGuardFallback {
     fn check(&self);
 }
 
-impl<T: std::fmt::Display + ?Sized> RawGuardFallback for RawGuard<'_, T> {
+impl<T: fmt::Display + ?Sized> RawGuardFallback for RawGuard<'_, T> {
     #[inline(always)]
     fn check(&self) {}
 }
@@ -135,25 +134,25 @@ impl<T: std::fmt::Display + ?Sized> RawGuardFallback for RawGuard<'_, T> {
 // ---------------------------------------------------------------------------
 
 impl<T: Hemplate + ?Sized> Hemplate for &T {
-    fn render_into(&self, buf: &mut String) -> Result<(), RenderError> {
+    fn render_into(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
         (*self).render_into(buf)
     }
 }
 
 impl<T: Hemplate + ?Sized> Hemplate for Box<T> {
-    fn render_into(&self, buf: &mut String) -> Result<(), RenderError> {
+    fn render_into(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
         (**self).render_into(buf)
     }
 }
 
 impl<T: Hemplate + ?Sized> Hemplate for Arc<T> {
-    fn render_into(&self, buf: &mut String) -> Result<(), RenderError> {
+    fn render_into(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
         (**self).render_into(buf)
     }
 }
 
 impl<T: Hemplate> Hemplate for Option<T> {
-    fn render_into(&self, buf: &mut String) -> Result<(), RenderError> {
+    fn render_into(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
         if let Some(inner) = self {
             inner.render_into(buf)?;
         }
@@ -162,7 +161,7 @@ impl<T: Hemplate> Hemplate for Option<T> {
 }
 
 impl<T: Hemplate> Hemplate for Vec<T> {
-    fn render_into(&self, buf: &mut String) -> Result<(), RenderError> {
+    fn render_into(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
         for item in self {
             item.render_into(buf)?;
         }
@@ -171,7 +170,7 @@ impl<T: Hemplate> Hemplate for Vec<T> {
 }
 
 impl<T: Hemplate> Hemplate for [T] {
-    fn render_into(&self, buf: &mut String) -> Result<(), RenderError> {
+    fn render_into(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
         for item in self {
             item.render_into(buf)?;
         }
@@ -182,15 +181,16 @@ impl<T: Hemplate> Hemplate for [T] {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::{string::String, vec};
 
     // A minimal Hemplate type for testing dispatch
     struct TestComponent(String);
 
     impl Hemplate for TestComponent {
-        fn render_into(&self, buf: &mut String) -> Result<(), RenderError> {
-            buf.push_str("<b>");
-            buf.push_str(&self.0);
-            buf.push_str("</b>");
+        fn render_into(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
+            buf.write_str("<b>")?;
+            buf.write_str(&self.0)?;
+            buf.write_str("</b>")?;
             Ok(())
         }
     }
@@ -198,16 +198,16 @@ mod tests {
     struct FailingComponent;
 
     impl Hemplate for FailingComponent {
-        fn render_into(&self, _buf: &mut String) -> Result<(), RenderError> {
-            Err(std::fmt::Error.into())
+        fn render_into(&self, _buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
+            Err(fmt::Error.into())
         }
     }
 
     struct FailingDisplay;
 
-    impl std::fmt::Display for FailingDisplay {
-        fn fmt(&self, _formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            Err(std::fmt::Error)
+    impl fmt::Display for FailingDisplay {
+        fn fmt(&self, _formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            Err(fmt::Error)
         }
     }
 
@@ -215,6 +215,21 @@ mod tests {
         let mut buf = String::new();
         value.render_into(&mut buf)?;
         Ok(buf)
+    }
+
+    #[test]
+    fn render_into_accepts_custom_writer() -> Result<(), RenderError> {
+        struct Writer(String);
+        impl fmt::Write for Writer {
+            fn write_str(&mut self, value: &str) -> fmt::Result {
+                self.0.push_str(value);
+                Ok(())
+            }
+        }
+        let mut writer = Writer(String::new());
+        TestComponent("caller-owned".into()).render_into(&mut writer)?;
+        assert_eq!(writer.0, "<b>caller-owned</b>");
+        Ok(())
     }
 
     #[test]
@@ -252,8 +267,8 @@ mod tests {
         let _marker = RawGuard(&comp).check();
         // If this compiles, the inherent impl was selected (returns marker, not ()).
         assert_eq!(
-            std::any::type_name_of_val(&_marker),
-            std::any::type_name::<RawInterpolationNotAllowedForHemplateTypes>()
+            core::any::type_name_of_val(&_marker),
+            core::any::type_name::<RawInterpolationNotAllowedForHemplateTypes>()
         );
     }
 
@@ -345,6 +360,33 @@ mod tests {
     fn box_dyn_hemplate_renders() -> Result<(), RenderError> {
         let comp: Box<dyn Hemplate> = Box::new(TestComponent("dyn".into()));
         assert_eq!(render_to_string(comp.as_ref())?, "<b>dyn</b>");
+        Ok(())
+    }
+
+    #[test]
+    fn references_box_arc_option_vec_and_slices_render() -> Result<(), RenderError> {
+        let value = TestComponent("one".into());
+        assert_eq!(render_to_string(&&value)?, "<b>one</b>");
+        assert_eq!(
+            render_to_string(&Box::new(TestComponent("two".into())))?,
+            "<b>two</b>"
+        );
+        assert_eq!(
+            render_to_string(&Arc::new(TestComponent("three".into())))?,
+            "<b>three</b>"
+        );
+        assert_eq!(
+            render_to_string(&Some(TestComponent("four".into())))?,
+            "<b>four</b>"
+        );
+        assert_eq!(
+            render_to_string(&vec![TestComponent("five".into())])?,
+            "<b>five</b>"
+        );
+        let slice = [TestComponent("six".into())];
+        assert_eq!(render_to_string(&slice[..])?, "<b>six</b>");
+        let dynamic: Box<dyn Hemplate> = Box::new(TestComponent("seven".into()));
+        assert_eq!(render_to_string(dynamic.as_ref())?, "<b>seven</b>");
         Ok(())
     }
 

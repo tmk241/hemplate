@@ -67,11 +67,11 @@ pub(crate) fn gen_static_attr(ra: &RegularAttribute<String>) -> TokenStream {
             gen_interpolated_attr(name, raw_content)
         } else {
             let s = format!(" {}={}", name, raw_content);
-            quote! { buf.push_str(#s); }
+            quote! { buf.write_str(#s)?; }
         }
     } else {
         let s = format!(" {}", name);
-        quote! { buf.push_str(#s); }
+        quote! { buf.write_str(#s)?; }
     }
 }
 
@@ -90,13 +90,13 @@ fn gen_interpolated_attr(name: &str, raw_value: &str) -> TokenStream {
     let attr_open = format!(" {}=\"", name);
 
     let mut parts = Vec::new();
-    parts.push(quote! { buf.push_str(#attr_open); });
+    parts.push(quote! { buf.write_str(#attr_open)?; });
 
     for seg in &segments {
         match seg {
             AttrValueSegment::Static(s) => {
                 let text = *s;
-                parts.push(quote! { buf.push_str(#text); });
+                parts.push(quote! { buf.write_str(#text)?; });
             }
             AttrValueSegment::Interpolation(expr_str) => {
                 match syn::parse_str::<syn::Expr>(expr_str) {
@@ -127,7 +127,7 @@ fn gen_interpolated_attr(name: &str, raw_value: &str) -> TokenStream {
         }
     }
 
-    parts.push(quote! { buf.push_str("\""); });
+    parts.push(quote! { buf.write_str("\"")?; });
 
     quote! { #(#parts)* }
 }
@@ -142,9 +142,9 @@ pub(crate) fn gen_dynamic_attr(da: &DynamicAttribute<String>) -> TokenStream {
     let expr_str = strip_quotes(da.1.content());
     match syn::parse_str::<syn::Expr>(expr_str) {
         Ok(expr) => quote! {
-            buf.push_str(concat!(" ", #attr_name, "=\""));
+            buf.write_str(concat!(" ", #attr_name, "=\""))?;
             std::fmt::Write::write_fmt(buf, format_args!("{}", ::hemplate::__runtime::HtmlEscape(&(#expr))))?;
-            buf.push_str("\"");
+            buf.write_str("\"")?;
         },
         Err(e) => {
             let msg = format!("hemplate: invalid expression in +{}: {}", attr_name, e);

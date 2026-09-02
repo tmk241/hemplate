@@ -1,11 +1,11 @@
-//! Whitespace property tests.
+//! Whitespace invariant and regression tests.
 //!
 //! These encode semantic invariants that hold independently of template content.
 
 use hemplate::Hemplate;
 
 // ==========================================================================
-// Property 1: Entities are never destroyed by condense
+// Invariant 1: Entities are never destroyed by condense
 // ==========================================================================
 
 #[derive(Hemplate)]
@@ -20,7 +20,7 @@ fn entity_survives_condense() {
 }
 
 // ==========================================================================
-// Property 2: No raw newlines or tabs in normal flow output
+// Invariant 2: No raw newlines or tabs in normal flow output
 // ==========================================================================
 
 #[derive(Hemplate)]
@@ -44,7 +44,7 @@ fn no_double_spaces_in_normal_output() {
 }
 
 // ==========================================================================
-// Property 3: <pre> content is preserved (except first-newline + \r\n)
+// Invariant 3: <pre> content is preserved (except first-newline + \r\n)
 // ==========================================================================
 
 #[derive(Hemplate)]
@@ -72,7 +72,7 @@ fn pre_does_not_condense() {
 }
 
 // ==========================================================================
-// Property 4: Inline space between elements without newline is kept
+// Invariant 4: Inline space between elements without newline is kept
 // ==========================================================================
 
 #[derive(Hemplate)]
@@ -90,7 +90,7 @@ fn inline_space_preserved_between_elements() {
 }
 
 // ==========================================================================
-// Property 5: Mixed text and inline elements retain meaningful spaces
+// Invariant 5: Mixed text and inline elements retain meaningful spaces
 // ==========================================================================
 
 #[test]

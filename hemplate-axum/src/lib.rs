@@ -117,8 +117,8 @@ mod tests {
     struct TestView;
 
     impl Hemplate for TestView {
-        fn render_into(&self, buf: &mut String) -> Result<(), RenderError> {
-            buf.push_str("<h1>Hello</h1>");
+        fn render_into(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
+            buf.write_str("<h1>Hello</h1>")?;
             Ok(())
         }
     }
@@ -154,7 +154,7 @@ mod tests {
     struct FailView;
 
     impl Hemplate for FailView {
-        fn render_into(&self, _buf: &mut String) -> Result<(), RenderError> {
+        fn render_into(&self, _buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
             Err(RenderError::Fmt(std::fmt::Error))
         }
     }
@@ -205,6 +205,24 @@ mod tests {
         let resp = TestView.into_html().into_response();
         assert_eq!(resp.status(), StatusCode::OK);
         assert_eq!(content_type(&resp), Some("text/html; charset=utf-8"));
+    }
+
+    #[test]
+    fn adapter_leaves_application_http_policy_outside_its_api() {
+        let source = include_str!("lib.rs").split("#[cfg(test)]").next().unwrap();
+        for forbidden in [
+            "axum::Router",
+            "axum::middleware",
+            "CACHE_CONTROL",
+            "ETAG",
+            "HeaderMap",
+            "tower::",
+        ] {
+            assert!(
+                !source.contains(forbidden),
+                "adapter owns forbidden policy: {forbidden}"
+            );
+        }
     }
 
     #[tokio::test]

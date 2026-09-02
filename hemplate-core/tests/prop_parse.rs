@@ -6,7 +6,7 @@ use hemplate_parser::parse_template;
 use proptest::prelude::*;
 
 // ---------------------------------------------------------------------------
-// Generate structurally valid Hemplate fragments.
+// Closed grammar strategy for structurally valid Hemplate fragments.
 // ---------------------------------------------------------------------------
 
 fn arb_heml() -> impl Strategy<Value = String> {
@@ -43,8 +43,42 @@ fn roundtrip(input: &str) -> String {
     TextExtractor::extract(&doc).unwrap()
 }
 
+fn top_level_element_kind(input: &str) -> &'static str {
+    let document = parse_ok(input);
+    let element = document
+        .hemplate()
+        .children()
+        .iter()
+        .find_map(|node| match node.hemplate() {
+            hemplate_core::ast::HemplateNode::Element(element) => Some(element),
+            _ => None,
+        })
+        .expect("fixture contains an element");
+    match element {
+        hemplate_core::ast::Element::RegularElement(_) => "regular",
+        hemplate_core::ast::Element::ScriptElement(_) => "script",
+        hemplate_core::ast::Element::StyleElement(_) => "style",
+        hemplate_core::ast::Element::VoidElement(_) => "void",
+        hemplate_core::ast::Element::SelfClosingElement(_) => "self-closing",
+    }
+}
+
+#[test]
+fn every_element_variant_roundtrip_invariant() {
+    for (input, expected_kind) in [
+        ("<section>body</section>", "regular"),
+        ("<script>const value = '<tag>';</script>", "script"),
+        ("<style>.item { color: red; }</style>", "style"),
+        ("<img src=\"x\">", "void"),
+        ("<custom-item/>", "self-closing"),
+    ] {
+        assert_eq!(top_level_element_kind(input), expected_kind, "{input}");
+        assert_eq!(roundtrip(input), input, "{input}");
+    }
+}
+
 // ---------------------------------------------------------------------------
-// Parsing arbitrary input never panics.
+// Broad arbitrary-input regression: parsing never panics.
 // ---------------------------------------------------------------------------
 
 proptest! {
@@ -55,7 +89,7 @@ proptest! {
 }
 
 // ---------------------------------------------------------------------------
-// Valid Hemplate input produces a typed AST.
+// Generated closed-grammar property: valid Hemplate produces a typed AST.
 // ---------------------------------------------------------------------------
 
 proptest! {

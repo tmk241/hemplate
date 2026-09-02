@@ -100,7 +100,7 @@ pub(crate) fn generate_body(doc: &RangeNode<String, Document<String>>) -> TokenS
     let tokens: Vec<TokenStream> = merged
         .into_iter()
         .map(|s| match s {
-            Stmt::Static(text) => quote! { buf.push_str(#text); },
+            Stmt::Static(text) => quote! { buf.write_str(#text)?; },
             Stmt::Dynamic(ts) => ts,
         })
         .collect();
@@ -220,7 +220,7 @@ fn gen_element_body_tokens(ctx: &mut Ctx, elem: &Element<String>) -> TokenStream
     let tokens: Vec<TokenStream> = merged
         .into_iter()
         .map(|s| match s {
-            Stmt::Static(text) => quote! { buf.push_str(#text); },
+            Stmt::Static(text) => quote! { buf.write_str(#text)?; },
             Stmt::Dynamic(ts) => ts,
         })
         .collect();

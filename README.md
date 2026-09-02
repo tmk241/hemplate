@@ -8,7 +8,7 @@ Add Hemplate to your project:
 
 ```toml
 [dependencies]
-hemplate = "0.2.0"
+hemplate = "0.3.0"
 ```
 
 Define a view:
@@ -66,7 +66,7 @@ The default `hemplate` features provide both derive support and host-side AST AP
 
 ```toml
 [dependencies]
-hemplate = { version = "0.2.0", default-features = false, features = ["derive"] }
+hemplate = { version = "0.3.0", default-features = false, features = ["derive"] }
 ```
 
 Template parsing and proc-macro code generation still run on the host. Generated code renders through the parser-free `hemplate-runtime` crate on the target, so Tree-sitter is not linked into the target dependency graph.

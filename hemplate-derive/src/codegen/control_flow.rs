@@ -31,9 +31,9 @@ pub(super) fn ws_token_for_context(ctx: &Ctx, text: &Text<String>) -> TokenStrea
             .map(|s| s.content())
             .collect::<String>()
             .replace("\r\n", "\n");
-        quote! { buf.push_str(#content); }
+        quote! { buf.write_str(#content)?; }
     } else {
-        quote! { buf.push_str(" "); }
+        quote! { buf.write_str(" ")?; }
     }
 }
 

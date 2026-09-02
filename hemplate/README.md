@@ -27,7 +27,7 @@ The default features provide derive support and host-side AST APIs. A constraine
 
 ```toml
 [dependencies]
-hemplate = { version = "0.2.0", default-features = false, features = ["derive"] }
+hemplate = { version = "0.3.0", default-features = false, features = ["derive"] }
 ```
 
 Generated code continues to use the normal `hemplate` facade path.

@@ -1,0 +1,4 @@
+<template h-match="self.code">
+  <span h-case="200">ok</span>
+  <span h-case="_">other</span>
+</template>

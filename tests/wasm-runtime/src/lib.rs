@@ -5,7 +5,7 @@
 // This real derive must compile for the Wasm target while generated code resolves the
 // runtime-only `::hemplate` facade.
 /// Fixture template that exercises escaped text, loops, and nested composition.
-#[derive(hemplate::Hemplate)]
+#[derive(hemplate::Hemplate)] // spec: runtime/006 check
 pub struct Greeting {
     /// Page / section title.
     pub title: String,
@@ -28,7 +28,7 @@ pub struct NestedContent {
 mod tests {
     use super::*;
     // Runtime-only consumers keep the normal trait import.
-    use hemplate::Hemplate as _;
+    use hemplate::Hemplate as _; // spec: runtime/008 check
 
     #[test]
     fn runtime_facade_renders_fixture_with_escaped_text() -> Result<(), hemplate::RenderError> {
@@ -61,7 +61,7 @@ mod tests {
         assert!(!html.contains("<li><b>two</b></li>"));
 
         // Nested Hemplate structure remains HTML while its display field is escaped.
-        assert_eq!(
+        assert_eq!( // spec: runtime/010 check
             html,
             "<!DOCTYPE html><html><head><title>Wasm Runtime</title></head><body><h1>Wasm Runtime</h1><p class=\"greeting\">Hello, &lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;!</p><section><strong>&lt;em&gt;nested&lt;/em&gt;</strong></section><ul><li>one</li><li>&lt;b&gt;two&lt;/b&gt;</li></ul></body></html>"
         );
@@ -104,7 +104,7 @@ mod tests {
         let graph = String::from_utf8(output.stdout)?;
         for forbidden in ["hemplate-parser", "tree-sitter", "tree-sitter-hemplate"] {
             assert!(
-                !graph.contains(forbidden),
+                !graph.contains(forbidden), // spec: runtime/007 check
                 "target graph unexpectedly contains {forbidden}:\n{graph}"
             );
         }

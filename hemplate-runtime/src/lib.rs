@@ -8,7 +8,15 @@
 //! runtime API and optionally enables the `derive` feature for
 //! `#[derive(Hemplate)]`.
 
+#![no_std]
 #![warn(missing_docs)]
+
+extern crate alloc;
+
+use alloc::string::String;
+
+#[cfg(test)]
+extern crate std;
 
 /// Error types.
 pub mod error;
@@ -29,7 +37,7 @@ pub use escape::HtmlEscape;
 /// convenience that allocates one output string.
 pub trait Hemplate {
     /// Render this template into the provided buffer.
-    fn render_into(&self, buf: &mut String) -> Result<(), RenderError>;
+    fn render_into(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError>;
 
     /// Estimated output bytes used to pre-size a rendering buffer.
     ///
@@ -54,7 +62,7 @@ mod tests {
     struct Empty;
 
     impl Hemplate for Empty {
-        fn render_into(&self, _buf: &mut String) -> Result<(), RenderError> {
+        fn render_into(&self, _buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
             Ok(())
         }
     }
@@ -62,8 +70,8 @@ mod tests {
     struct Text;
 
     impl Hemplate for Text {
-        fn render_into(&self, buf: &mut String) -> Result<(), RenderError> {
-            buf.push_str("rendered");
+        fn render_into(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
+            buf.write_str("rendered")?;
             Ok(())
         }
     }
@@ -71,8 +79,8 @@ mod tests {
     struct Failing;
 
     impl Hemplate for Failing {
-        fn render_into(&self, _buf: &mut String) -> Result<(), RenderError> {
-            Err(std::fmt::Error.into())
+        fn render_into(&self, _buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
+            Err(core::fmt::Error.into())
         }
     }
 
