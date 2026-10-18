@@ -1,0 +1,2 @@
+<img srcset="{+ self.a +}">
+<source srcset="{+ self.b +}">

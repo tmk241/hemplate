@@ -1,0 +1,7 @@
+error[E0308]: mismatched types
+ --> tests/ui/fail_raw_component.rs:6:10
+  |
+6 | #[derive(Hemplate)]
+  |          ^^^^^^^^ expected `()`, found `RawInterpolationNotAllowedForHemplateTypes`
+  |
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)

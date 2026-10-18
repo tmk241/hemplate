@@ -18,15 +18,27 @@ use alloc::string::String;
 #[cfg(test)]
 extern crate std;
 
+/// Attribute contexts and the typed values that may enter them.
+pub mod context;
 /// Error types.
 pub mod error;
 /// HTML escape utility.
 pub mod escape;
+/// Typed values for HTML's enumerated `hidden` attribute.
+pub mod hidden;
 /// Codegen dispatch helpers for interpolation.
 pub mod render;
 
+pub use context::{
+    AnimationContext, AnimationValue, Context, Descriptor, DocumentContext, DocumentValue,
+    NavigationContext, NavigationValue, ResourceContext, ResourceValue, ScriptContext, ScriptValue,
+    Srcset, SrcsetContext, SrcsetValue, StyleContext, StyleValue, Trusted, TrustedAnimation,
+    TrustedDocument, TrustedNavigation, TrustedResource, TrustedScript, TrustedSrcset,
+    TrustedStyle, TrustedUrl, Url, UrlContext, UrlError, UrlValue,
+};
 pub use error::RenderError;
 pub use escape::HtmlEscape;
+pub use hidden::{HiddenAttribute, HiddenValue};
 
 /// Trait for types that can render themselves as an HTML string.
 ///

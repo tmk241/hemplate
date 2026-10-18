@@ -1,0 +1,67 @@
+error[E0277]: `String` cannot be interpolated into an event-handler attribute (`on*`)
+ --> tests/ui/reject_script_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ this value would be run as JavaScript
+  |
+  = help: the trait `ScriptValue` is not implemented for `String`
+  = note: HTML escaping does not make a value safe as code: the browser decodes the attribute before running it
+  = note: pass data in a `data-*` attribute and read it from a script, or use a Hemx handle
+  = note: code you wrote yourself can be vouched for with `hemplate::TrustedScript::new_unchecked(..)`
+note: required by a bound in `__hemplate_script_attr_onclick_at_ui_script_context_heml_line_1_col_17`
+ --> tests/ui/reject_script_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_script_attr_onclick_at_ui_script_context_heml_line_1_col_17`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `&str` cannot be interpolated into an event-handler attribute (`on*`)
+ --> tests/ui/reject_script_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ this value would be run as JavaScript
+  |
+  = help: the trait `ScriptValue` is not implemented for `&str`
+  = note: HTML escaping does not make a value safe as code: the browser decodes the attribute before running it
+  = note: pass data in a `data-*` attribute and read it from a script, or use a Hemx handle
+  = note: code you wrote yourself can be vouched for with `hemplate::TrustedScript::new_unchecked(..)`
+note: required by a bound in `__hemplate_script_attr_ONCLICK_at_ui_script_context_heml_line_2_col_17`
+ --> tests/ui/reject_script_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_script_attr_ONCLICK_at_ui_script_context_heml_line_2_col_17`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `u32` cannot be interpolated into an event-handler attribute (`on*`)
+ --> tests/ui/reject_script_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ this value would be run as JavaScript
+  |
+  = help: the trait `ScriptValue` is not implemented for `u32`
+  = note: HTML escaping does not make a value safe as code: the browser decodes the attribute before running it
+  = note: pass data in a `data-*` attribute and read it from a script, or use a Hemx handle
+  = note: code you wrote yourself can be vouched for with `hemplate::TrustedScript::new_unchecked(..)`
+note: required by a bound in `__hemplate_script_attr_onclick_at_ui_script_context_heml_line_3_col_18`
+ --> tests/ui/reject_script_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_script_attr_onclick_at_ui_script_context_heml_line_3_col_18`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `char` cannot be interpolated into an event-handler attribute (`on*`)
+ --> tests/ui/reject_script_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ this value would be run as JavaScript
+  |
+  = help: the trait `ScriptValue` is not implemented for `char`
+  = note: HTML escaping does not make a value safe as code: the browser decodes the attribute before running it
+  = note: pass data in a `data-*` attribute and read it from a script, or use a Hemx handle
+  = note: code you wrote yourself can be vouched for with `hemplate::TrustedScript::new_unchecked(..)`
+note: required by a bound in `__hemplate_script_attr_onselect_at_ui_script_context_heml_line_4_col_19`
+ --> tests/ui/reject_script_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_script_attr_onselect_at_ui_script_context_heml_line_4_col_19`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)

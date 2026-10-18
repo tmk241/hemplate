@@ -1,0 +1,93 @@
+error[E0277]: `String` cannot be interpolated into a `style` attribute
+ --> tests/ui/reject_style_document_navigation.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ this value would be read as CSS
+  |
+  = help: the trait `StyleValue` is not implemented for `String`
+  = note: a `;` ends the property, so a value can add others such as `background: url(..)` that fetch a URL
+  = note: choose among fixed styles with `+class=".."`, or implement `hemplate::StyleValue` for a type that can only build valid values
+  = note: or vouch for CSS explicitly with `hemplate::TrustedStyle::new_unchecked(..)`
+note: required by a bound in `__hemplate_style_attr_style_at_ui_style_document_navigation_heml_line_1_col_10`
+ --> tests/ui/reject_style_document_navigation.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_style_attr_style_at_ui_style_document_navigation_heml_line_1_col_10`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `&str` cannot be interpolated into a `style` attribute
+ --> tests/ui/reject_style_document_navigation.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ this value would be read as CSS
+  |
+  = help: the trait `StyleValue` is not implemented for `&str`
+  = note: a `;` ends the property, so a value can add others such as `background: url(..)` that fetch a URL
+  = note: choose among fixed styles with `+class=".."`, or implement `hemplate::StyleValue` for a type that can only build valid values
+  = note: or vouch for CSS explicitly with `hemplate::TrustedStyle::new_unchecked(..)`
+note: required by a bound in `__hemplate_style_attr_STYLE_at_ui_style_document_navigation_heml_line_2_col_10`
+ --> tests/ui/reject_style_document_navigation.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_style_attr_STYLE_at_ui_style_document_navigation_heml_line_2_col_10`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `u32` cannot be interpolated into a `srcdoc` attribute
+ --> tests/ui/reject_style_document_navigation.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ this value would be parsed as a whole HTML document
+  |
+  = help: the trait `DocumentValue` is not implemented for `u32`
+  = note: serve the document from its own URL and use `src`, or vouch for it with `hemplate::TrustedDocument::new_unchecked(..)`
+note: required by a bound in `__hemplate_document_attr_srcdoc_at_ui_style_document_navigation_heml_line_3_col_16`
+ --> tests/ui/reject_style_document_navigation.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_document_attr_srcdoc_at_ui_style_document_navigation_heml_line_3_col_16`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `char` cannot be interpolated into `<base href>` or `<meta http-equiv>`
+ --> tests/ui/reject_style_document_navigation.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ this value changes how the whole page navigates or behaves
+  |
+  = help: the trait `NavigationValue` is not implemented for `char`
+  = note: use fixed text, or vouch for the value with `hemplate::TrustedNavigation::new_unchecked(..)`
+note: required by a bound in `__hemplate_navigation_attr_href_at_ui_style_document_navigation_heml_line_4_col_12`
+ --> tests/ui/reject_style_document_navigation.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_navigation_attr_href_at_ui_style_document_navigation_heml_line_4_col_12`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `bool` cannot be interpolated into `<base href>` or `<meta http-equiv>`
+ --> tests/ui/reject_style_document_navigation.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ this value changes how the whole page navigates or behaves
+  |
+  = help: the trait `NavigationValue` is not implemented for `bool`
+  = note: use fixed text, or vouch for the value with `hemplate::TrustedNavigation::new_unchecked(..)`
+note: required by a bound in `__hemplate_navigation_attr_content_at_ui_style_document_navigation_heml_line_5_col_36`
+ --> tests/ui/reject_style_document_navigation.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_navigation_attr_content_at_ui_style_document_navigation_heml_line_5_col_36`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `f64` cannot be interpolated into `<base href>` or `<meta http-equiv>`
+ --> tests/ui/reject_style_document_navigation.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ this value changes how the whole page navigates or behaves
+  |
+  = help: the trait `NavigationValue` is not implemented for `f64`
+  = note: use fixed text, or vouch for the value with `hemplate::TrustedNavigation::new_unchecked(..)`
+note: required by a bound in `__hemplate_navigation_attr_http_equiv_at_ui_style_document_navigation_heml_line_6_col_18`
+ --> tests/ui/reject_style_document_navigation.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_navigation_attr_http_equiv_at_ui_style_document_navigation_heml_line_6_col_18`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)

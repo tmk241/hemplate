@@ -1,0 +1,263 @@
+==================
+Adjacent valueless custom and Boolean attributes
+==================
+<span data-status hidden>idle</span>
+---
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute (regular_attribute (attribute_name)))
+          (attribute (regular_attribute (attribute_name)))))
+      (text (text_chunk))
+      (end_tag (tag_name)))))
+
+==================
+Three adjacent valueless attributes on a void element
+==================
+<input disabled checked required>
+---
+(document
+  (element
+    (void_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute (regular_attribute (attribute_name)))
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute (regular_attribute (attribute_name)))
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute (regular_attribute (attribute_name))))))))
+
+==================
+Valueless attributes before a self-closing delimiter
+==================
+<input disabled checked/>
+---
+(document
+  (element
+    (self_closing_element
+      (tag_name)
+      (attributes
+        (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+        (attribute (regular_attribute (attribute_name)))
+        (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+        (attribute (regular_attribute (attribute_name)))))))
+
+==================
+Valueless attribute followed by a dynamic Boolean binding
+==================
+<input disabled +checked="false">
+---
+(document
+  (element
+    (void_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute (regular_attribute (attribute_name)))
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute
+            (dynamic_attribute
+              (attribute_name)
+              (quoted_expression
+                (double_quoted_expression (expression (literal (boolean))))))))))))
+
+==================
+Valueless attribute followed by an unquoted assignment
+==================
+<input data-empty data-next=ok>
+---
+(document
+  (element
+    (void_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute (regular_attribute (attribute_name)))
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute
+            (regular_attribute
+              (attribute_name)
+              (attribute_value (unquoted_value)))))))))
+
+==================
+Ordinary assignments with double and single quoted values
+==================
+<input title="hello" value='world'>
+---
+(document
+  (element
+    (void_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute
+            (regular_attribute
+              (attribute_name)
+              (attribute_value (quoted_value (double_quoted_value (text (text_chunk)))))))
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute
+            (regular_attribute
+              (attribute_name)
+              (attribute_value (quoted_value (single_quoted_value (text (text_chunk))))))))))))
+
+==================
+Empty quoted values remain values rather than valueless attributes
+==================
+<input value="" data-empty=''>
+---
+(document
+  (element
+    (void_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute
+            (regular_attribute
+              (attribute_name)
+              (attribute_value (quoted_value (double_quoted_value)))))
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute
+            (regular_attribute
+              (attribute_name)
+              (attribute_value (quoted_value (single_quoted_value))))))))))
+
+==================
+Spaces around ordinary dynamic and directive assignment separators
+==================
+<input id = 'query' +data-id = "self.id" h-if = "self.visible">
+---
+(document
+  (element
+    (void_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute
+            (regular_attribute
+              (attribute_name)
+              (attribute_value (quoted_value (single_quoted_value (text (text_chunk)))))))
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute
+            (dynamic_attribute
+              (attribute_name)
+              (quoted_expression
+                (double_quoted_expression
+                  (expression (member_expression (identifier) (identifier)))))))
+          (attribute
+            (template_directive
+              (template_directive_name)
+              (attribute_value (quoted_value (double_quoted_value (text (text_chunk))))))))))))
+
+==================
+Tabs around ordinary dynamic and directive assignment separators
+==================
+<input id	=	'query' +data-id	=	"self.id" h-if	=	"self.visible">
+---
+(document
+  (element
+    (void_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute
+            (regular_attribute
+              (attribute_name)
+              (attribute_value (quoted_value (single_quoted_value (text (text_chunk)))))))
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute
+            (dynamic_attribute
+              (attribute_name)
+              (quoted_expression
+                (double_quoted_expression
+                  (expression (member_expression (identifier) (identifier)))))))
+          (attribute
+            (template_directive
+              (template_directive_name)
+              (attribute_value (quoted_value (double_quoted_value (text (text_chunk))))))))))))
+
+==================
+Newlines around ordinary dynamic and directive assignment separators
+==================
+<input id
+=
+'query' +data-id
+=
+"self.id" h-if
+=
+"self.visible">
+---
+(document
+  (element
+    (void_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute
+            (regular_attribute
+              (attribute_name)
+              (attribute_value (quoted_value (single_quoted_value (text (text_chunk)))))))
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute
+            (dynamic_attribute
+              (attribute_name)
+              (quoted_expression
+                (double_quoted_expression
+                  (expression (member_expression (identifier) (identifier)))))))
+          (attribute
+            (template_directive
+              (template_directive_name)
+              (attribute_value (quoted_value (double_quoted_value (text (text_chunk))))))))))))
+
+==================
+Generic custom attribute names do not become directives
+==================
+<widget-box data-id=ok aria-label='name' @click='go' :value='x' h-custom='kept'></widget-box>
+---
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute (regular_attribute (attribute_name) (attribute_value (unquoted_value))))
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute (regular_attribute (attribute_name) (attribute_value (quoted_value (single_quoted_value (text (text_chunk)))))))
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute (regular_attribute (attribute_name) (attribute_value (quoted_value (single_quoted_value (text (text_chunk)))))))
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute (regular_attribute (attribute_name) (attribute_value (quoted_value (single_quoted_value (text (text_chunk)))))))
+          (attribute (regular_attribute (attribute_name) (attribute_value (quoted_value (single_quoted_value (text (text_chunk)))))))))
+      (end_tag (tag_name)))))
+
+==================
+Normal dynamic assignment owns a single quoted expression
+==================
+<input +value='self.value'>
+---
+(document
+  (element
+    (void_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute
+            (dynamic_attribute
+              (attribute_name)
+              (quoted_expression
+                (single_quoted_expression
+                  (expression (member_expression (identifier) (identifier))))))))))))

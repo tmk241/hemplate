@@ -53,3 +53,93 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod attribute_regressions {
+    use super::*;
+
+    #[test]
+    fn assignment_whitespace_preserves_values_and_boundaries() {
+        for source in [
+            r#"<input  id = "query" disabled +data-id = "self.id" h-if = "self.visible">"#,
+            "<input id\t=\n'query' disabled +data-id\t=\n\"self.id\" h-if\t=\n\"self.visible\">",
+        ] {
+            let tree = parse_template(source, None).unwrap();
+            let root = tree.root_node();
+            assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+            let mut found = Vec::new();
+            let mut pending = vec![root];
+            while let Some(node) = pending.pop() {
+                if matches!(
+                    node.kind(),
+                    "regular_attribute" | "dynamic_attribute" | "template_directive"
+                ) {
+                    let name = node.named_child(0).unwrap();
+                    let value = node
+                        .named_child(1)
+                        .map(|value| source[value.byte_range()].trim());
+                    found.push((node.start_byte(), source[name.byte_range()].trim(), value));
+                }
+                pending.extend(node.named_children(&mut node.walk()));
+            }
+            found.sort_by_key(|item| item.0);
+            let names: Vec<_> = found.iter().map(|item| item.1).collect();
+            assert_eq!(names, ["id", "disabled", "data-id", "h-if"]);
+            assert!(matches!(found[0].2, Some("\"query\"" | "'query'")));
+            assert_eq!(found[1].2, None);
+            assert_eq!(found[2].2, Some("\"self.id\""));
+            assert_eq!(found[3].2, Some("\"self.visible\""));
+        }
+    }
+
+    #[test]
+    fn valueless_attributes_do_not_consume_following_names() {
+        for source in [
+            r#"<input disabled +checked="false">"#,
+            "<span data-cad-gesture-status hidden>idle</span>",
+            "<input disabled checked/>",
+            "<input disabled checked>",
+            "<input disabled checked required>",
+            "<input disabled data-next='ok'>",
+            "<input data-empty data-next=ok>",
+        ] {
+            let tree = parse_template(source, None).unwrap();
+            let root = tree.root_node();
+            assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+            let mut attributes = Vec::new();
+            let mut pending = vec![root];
+            while let Some(node) = pending.pop() {
+                if matches!(node.kind(), "regular_attribute" | "dynamic_attribute") {
+                    attributes.push(node);
+                }
+                pending.extend(node.named_children(&mut node.walk()));
+            }
+            attributes.sort_by_key(tree_sitter::Node::start_byte);
+            let names: Vec<_> = attributes
+                .iter()
+                // Compare logical names, as the host extractor does. Token ranges
+                // may include leading whitespace trivia; attribute boundaries
+                // and the absence of a consumed value remain asserted separately.
+                .map(|node| source[node.named_child(0).unwrap().byte_range()].trim())
+                .collect();
+            let expected = if source.contains("gesture-status") {
+                vec!["data-cad-gesture-status", "hidden"]
+            } else if source.contains("required") {
+                vec!["disabled", "checked", "required"]
+            } else if source.contains("checked") {
+                vec!["disabled", "checked"]
+            } else if source.contains("data-empty") {
+                vec!["data-empty", "data-next"]
+            } else {
+                vec!["disabled", "data-next"]
+            };
+            assert_eq!(names, expected, "{source}: {}", root.to_sexp());
+            assert_eq!(
+                attributes[0].named_child_count(),
+                1,
+                "{source}: {}",
+                root.to_sexp()
+            );
+        }
+    }
+}

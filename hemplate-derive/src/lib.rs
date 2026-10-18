@@ -4,6 +4,7 @@ use syn::{parse_macro_input, DeriveInput};
 mod attr;
 mod codegen;
 mod condense;
+mod context;
 mod template_source;
 
 use template_source::{extract_dir_attribute, resolve_template_path, TemplateSource};
@@ -19,7 +20,7 @@ pub fn derive_hemplate(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
                 Ok(source) => source,
                 Err(error) => return error.to_compile_error().into(),
             };
-            gen_struct_impl(name, &source)
+            gen_struct_tokens(&input, &source).into()
         }
         syn::Data::Enum(data_enum) => gen_enum_impl(name, data_enum, &input),
         syn::Data::Union(_) => syn::Error::new_spanned(
@@ -31,18 +32,16 @@ pub fn derive_hemplate(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
     }
 }
 
-fn gen_struct_impl(name: &syn::Ident, source: &TemplateSource) -> proc_macro::TokenStream {
-    gen_struct_tokens(name, source).into()
-}
-
-fn gen_struct_tokens(name: &syn::Ident, source: &TemplateSource) -> proc_macro2::TokenStream {
-    let body = codegen::generate_body(&source.ast);
+fn gen_struct_tokens(input: &DeriveInput, source: &TemplateSource) -> proc_macro2::TokenStream {
+    let name = &input.ident;
+    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let body = codegen::generate_body(&source.ast, &template_source::diagnostic_path(&source.path));
     let template_size_hint = source.ast.content().len();
     let tracked_dependency = template_source::tracked_dependency(&source.path);
     let output = quote! {
         #tracked_dependency
 
-        impl ::hemplate::__runtime::Hemplate for #name {
+        impl #impl_generics ::hemplate::__runtime::Hemplate for #name #type_generics #where_clause {
             fn render_into(&self, buf: &mut dyn ::core::fmt::Write) -> Result<(), ::hemplate::__runtime::error::RenderError> {
                 use std::fmt::Write as _;
                 use ::hemplate::__runtime::render::EscapedFallback as _;
@@ -71,6 +70,7 @@ fn gen_enum_impl(
     data_enum: &syn::DataEnum,
     input: &syn::DeriveInput,
 ) -> proc_macro::TokenStream {
+    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
     let enum_snake = to_snake_case(&name.to_string());
     let enum_dir = match extract_dir_attribute(&input.attrs, &input.ident) {
         Ok(d) => d,
@@ -125,7 +125,7 @@ fn gen_enum_impl(
             Err(error) => return error.to_compile_error().into(),
         };
 
-        let body = codegen::generate_body(&ast);
+        let body = codegen::generate_body(&ast, &template_source::diagnostic_path(&variant_path));
         let template_size_hint = ast.content().len();
 
         let (arm, size_hint_arm) = match &variant.fields {
@@ -177,7 +177,7 @@ fn gen_enum_impl(
     let output = quote! {
         #tracked_dependencies
 
-        impl ::hemplate::__runtime::Hemplate for #name {
+        impl #impl_generics ::hemplate::__runtime::Hemplate for #name #type_generics #where_clause {
             fn render_into(&self, buf: &mut dyn ::core::fmt::Write) -> Result<(), ::hemplate::__runtime::error::RenderError> {
                 use std::fmt::Write as _;
                 use ::hemplate::__runtime::render::EscapedFallback as _;
@@ -223,12 +223,14 @@ mod tests {
         let ast = hemplate_core::ast::build_ast(std::sync::Arc::new("<p>probe</p>".into()))
             .unwrap()
             .unwrap();
-        let name = syn::Ident::new("Probe", proc_macro2::Span::call_site());
+        let input = syn::parse_quote!(
+            struct Probe;
+        );
         let source = TemplateSource {
             path: "probe.heml".into(),
             ast,
         };
-        let output = gen_struct_tokens(&name, &source).to_string();
+        let output = gen_struct_tokens(&input, &source).to_string();
 
         assert!(output.contains("impl :: hemplate :: __runtime :: Hemplate for Probe"));
         assert!(!output.contains("Display for Probe"));

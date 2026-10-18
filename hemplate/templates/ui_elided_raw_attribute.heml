@@ -1,0 +1,2 @@
+<p>ok</p>
+<template title="{+= self.value =+}">ok</template>

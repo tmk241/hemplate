@@ -1,0 +1,9 @@
+[package]
+name = "hemplate-browser-vectors"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+publish = false
+
+[dependencies]
+hemplate = { path = "../../hemplate", default-features = false, features = ["derive"] }

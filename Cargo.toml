@@ -8,6 +8,7 @@ members = [
     "hemplate-parser",
     "hemplate-runtime",
     "tree-sitter-hemplate",
+    "tests/browser-vectors",
     "tests/default-runtime",
     "tests/wasm-runtime",
 ]

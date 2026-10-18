@@ -1,0 +1,5 @@
+<main id="page">
+{+= self.link =+}
+<p id="color" style="{+ self.color +}">color</p>
+<img id="pic" srcset="{+ self.srcset +}">
+</main>

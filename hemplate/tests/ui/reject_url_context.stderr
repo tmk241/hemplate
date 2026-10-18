@@ -1,0 +1,79 @@
+error[E0277]: `String` is not a checked URL, so it cannot be the whole value of a URL attribute
+ --> tests/ui/reject_url_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ a string could hold a `javascript:` URL
+  |
+  = help: the trait `UrlValue` is not implemented for `String`
+  = note: parse it with `hemplate::Url::parse(..)` and handle the error, or start the attribute with fixed text such as `/`, `?`, `#` or `https://`
+  = note: for a scheme such as `data:` or `sms:`, vouch for it explicitly with `hemplate::TrustedUrl::new_unchecked(..)`
+note: required by a bound in `__hemplate_url_attr_href_at_ui_url_context_heml_line_1_col_9`
+ --> tests/ui/reject_url_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_url_attr_href_at_ui_url_context_heml_line_1_col_9`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `&str` is not a checked URL, so it cannot be the whole value of a URL attribute
+ --> tests/ui/reject_url_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ a string could hold a `javascript:` URL
+  |
+  = help: the trait `UrlValue` is not implemented for `&str`
+  = note: parse it with `hemplate::Url::parse(..)` and handle the error, or start the attribute with fixed text such as `/`, `?`, `#` or `https://`
+  = note: for a scheme such as `data:` or `sms:`, vouch for it explicitly with `hemplate::TrustedUrl::new_unchecked(..)`
+note: required by a bound in `__hemplate_url_attr_HREF_at_ui_url_context_heml_line_2_col_9`
+ --> tests/ui/reject_url_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_url_attr_HREF_at_ui_url_context_heml_line_2_col_9`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `u32` is not a checked URL, so it cannot be the whole value of a URL attribute
+ --> tests/ui/reject_url_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ a string could hold a `javascript:` URL
+  |
+  = help: the trait `UrlValue` is not implemented for `u32`
+  = note: parse it with `hemplate::Url::parse(..)` and handle the error, or start the attribute with fixed text such as `/`, `?`, `#` or `https://`
+  = note: for a scheme such as `data:` or `sms:`, vouch for it explicitly with `hemplate::TrustedUrl::new_unchecked(..)`
+note: required by a bound in `__hemplate_url_attr_href_at_ui_url_context_heml_line_3_col_10`
+ --> tests/ui/reject_url_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_url_attr_href_at_ui_url_context_heml_line_3_col_10`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `char` is not a checked URL, so it cannot be the whole value of a URL attribute
+ --> tests/ui/reject_url_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ a string could hold a `javascript:` URL
+  |
+  = help: the trait `UrlValue` is not implemented for `char`
+  = note: parse it with `hemplate::Url::parse(..)` and handle the error, or start the attribute with fixed text such as `/`, `?`, `#` or `https://`
+  = note: for a scheme such as `data:` or `sms:`, vouch for it explicitly with `hemplate::TrustedUrl::new_unchecked(..)`
+note: required by a bound in `__hemplate_url_attr_src_at_ui_url_context_heml_line_4_col_10`
+ --> tests/ui/reject_url_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_url_attr_src_at_ui_url_context_heml_line_4_col_10`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `bool` is not a checked URL, so it cannot be the whole value of a URL attribute
+ --> tests/ui/reject_url_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ a string could hold a `javascript:` URL
+  |
+  = help: the trait `UrlValue` is not implemented for `bool`
+  = note: parse it with `hemplate::Url::parse(..)` and handle the error, or start the attribute with fixed text such as `/`, `?`, `#` or `https://`
+  = note: for a scheme such as `data:` or `sms:`, vouch for it explicitly with `hemplate::TrustedUrl::new_unchecked(..)`
+note: required by a bound in `__hemplate_url_attr_action_at_ui_url_context_heml_line_5_col_14`
+ --> tests/ui/reject_url_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_url_attr_action_at_ui_url_context_heml_line_5_col_14`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)

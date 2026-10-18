@@ -802,10 +802,6 @@
           "named": true
         },
         {
-          "type": "quoted_expression",
-          "named": true
-        },
-        {
           "type": "template_directive_name",
           "named": true
         }

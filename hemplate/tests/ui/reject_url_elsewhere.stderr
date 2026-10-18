@@ -1,0 +1,135 @@
+error[E0277]: `Url` cannot be interpolated into an event-handler attribute (`on*`)
+  --> tests/ui/reject_url_elsewhere.rs:16:12
+   |
+16 |     script(url.clone());
+   |     ------ ^^^^^^^^^^^ this value would be run as JavaScript
+   |     |
+   |     required by a bound introduced by this call
+   |
+   = help: the trait `ScriptValue` is not implemented for `Url`
+   = note: HTML escaping does not make a value safe as code: the browser decodes the attribute before running it
+   = note: pass data in a `data-*` attribute and read it from a script, or use a Hemx handle
+   = note: code you wrote yourself can be vouched for with `hemplate::TrustedScript::new_unchecked(..)`
+note: required by a bound in `script`
+  --> tests/ui/reject_url_elsewhere.rs:6:19
+   |
+ 6 | fn script(_: impl ScriptValue) {}
+   |                   ^^^^^^^^^^^ required by this bound in `script`
+
+error[E0277]: `Url` cannot be interpolated into a `style` attribute
+  --> tests/ui/reject_url_elsewhere.rs:17:11
+   |
+17 |     style(url.clone());
+   |     ----- ^^^^^^^^^^^ this value would be read as CSS
+   |     |
+   |     required by a bound introduced by this call
+   |
+   = help: the trait `StyleValue` is not implemented for `Url`
+   = note: a `;` ends the property, so a value can add others such as `background: url(..)` that fetch a URL
+   = note: choose among fixed styles with `+class=".."`, or implement `hemplate::StyleValue` for a type that can only build valid values
+   = note: or vouch for CSS explicitly with `hemplate::TrustedStyle::new_unchecked(..)`
+note: required by a bound in `style`
+  --> tests/ui/reject_url_elsewhere.rs:7:18
+   |
+ 7 | fn style(_: impl StyleValue) {}
+   |                  ^^^^^^^^^^ required by this bound in `style`
+
+error[E0277]: `Url` cannot be interpolated into a `srcdoc` attribute
+  --> tests/ui/reject_url_elsewhere.rs:18:14
+   |
+18 |     document(url.clone());
+   |     -------- ^^^^^^^^^^^ this value would be parsed as a whole HTML document
+   |     |
+   |     required by a bound introduced by this call
+   |
+   = help: the trait `DocumentValue` is not implemented for `Url`
+   = note: serve the document from its own URL and use `src`, or vouch for it with `hemplate::TrustedDocument::new_unchecked(..)`
+note: required by a bound in `document`
+  --> tests/ui/reject_url_elsewhere.rs:8:21
+   |
+ 8 | fn document(_: impl DocumentValue) {}
+   |                     ^^^^^^^^^^^^^ required by this bound in `document`
+
+error[E0277]: `Url` cannot be interpolated into `<base href>` or `<meta http-equiv>`
+  --> tests/ui/reject_url_elsewhere.rs:19:16
+   |
+19 |     navigation(url.clone());
+   |     ---------- ^^^^^^^^^^^ this value changes how the whole page navigates or behaves
+   |     |
+   |     required by a bound introduced by this call
+   |
+   = help: the trait `NavigationValue` is not implemented for `Url`
+   = note: use fixed text, or vouch for the value with `hemplate::TrustedNavigation::new_unchecked(..)`
+note: required by a bound in `navigation`
+  --> tests/ui/reject_url_elsewhere.rs:9:23
+   |
+ 9 | fn navigation(_: impl NavigationValue) {}
+   |                       ^^^^^^^^^^^^^^^ required by this bound in `navigation`
+
+error[E0277]: `Url` cannot be interpolated into a URL that loads script, styles or plug-ins
+  --> tests/ui/reject_url_elsewhere.rs:20:14
+   |
+20 |     resource(url.clone());
+   |     -------- ^^^^^^^^^^^ even an `https:` URL would run code or styles from wherever it points
+   |     |
+   |     required by a bound introduced by this call
+   |
+   = help: the trait `ResourceValue` is not implemented for `Url`
+   = note: use a fixed URL, or a type implementing `hemplate::ResourceValue` that can only name files you serve
+   = note: or vouch for the URL with `hemplate::TrustedResource::new_unchecked(..)`
+note: required by a bound in `resource`
+  --> tests/ui/reject_url_elsewhere.rs:10:21
+   |
+10 | fn resource(_: impl ResourceValue) {}
+   |                     ^^^^^^^^^^^^^ required by this bound in `resource`
+
+error[E0277]: `Url` cannot be interpolated into an SVG animation attribute
+  --> tests/ui/reject_url_elsewhere.rs:21:15
+   |
+21 |     animation(url.clone());
+   |     --------- ^^^^^^^^^^^ an animation can set `href` to a `javascript:` URL
+   |     |
+   |     required by a bound introduced by this call
+   |
+   = help: the trait `AnimationValue` is not implemented for `Url`
+   = note: use fixed values, or vouch for them with `hemplate::TrustedAnimation::new_unchecked(..)`
+note: required by a bound in `animation`
+  --> tests/ui/reject_url_elsewhere.rs:11:22
+   |
+11 | fn animation(_: impl AnimationValue) {}
+   |                      ^^^^^^^^^^^^^^ required by this bound in `animation`
+
+error[E0277]: `Url` cannot be interpolated into a `srcset` attribute
+  --> tests/ui/reject_url_elsewhere.rs:22:12
+   |
+22 |     srcset(url);
+   |     ------ ^^^ every candidate in a srcset must be a checked URL
+   |     |
+   |     required by a bound introduced by this call
+   |
+   = help: the trait `SrcsetValue` is not implemented for `Url`
+   = note: build a `hemplate::Srcset` from checked `hemplate::Url` values
+   = note: or vouch for a list explicitly with `hemplate::TrustedSrcset::new_unchecked(..)`
+note: required by a bound in `srcset`
+  --> tests/ui/reject_url_elsewhere.rs:12:19
+   |
+12 | fn srcset(_: impl SrcsetValue) {}
+   |                   ^^^^^^^^^^^ required by this bound in `srcset`
+
+error[E0277]: `Trusted<UrlContext>` cannot be interpolated into an event-handler attribute (`on*`)
+  --> tests/ui/reject_url_elsewhere.rs:24:12
+   |
+24 |     script(TrustedUrl::new_unchecked("x"));
+   |     ------ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this value would be run as JavaScript
+   |     |
+   |     required by a bound introduced by this call
+   |
+   = help: the trait `ScriptValue` is not implemented for `Trusted<UrlContext>`
+   = note: HTML escaping does not make a value safe as code: the browser decodes the attribute before running it
+   = note: pass data in a `data-*` attribute and read it from a script, or use a Hemx handle
+   = note: code you wrote yourself can be vouched for with `hemplate::TrustedScript::new_unchecked(..)`
+note: required by a bound in `script`
+  --> tests/ui/reject_url_elsewhere.rs:6:19
+   |
+ 6 | fn script(_: impl ScriptValue) {}
+   |                   ^^^^^^^^^^^ required by this bound in `script`

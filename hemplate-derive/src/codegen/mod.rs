@@ -1,4 +1,6 @@
 mod control_flow;
+pub(crate) mod namespace;
+use namespace::Namespace;
 #[cfg(test)]
 mod tests;
 
@@ -23,6 +25,19 @@ pub(crate) fn compile_err(msg: &str) -> TokenStream {
     quote! { compile_error!(#msg); }
 }
 
+pub(crate) fn source_error<T>(
+    template_path: &str,
+    node: &RangeNode<String, T>,
+    message: &str,
+) -> TokenStream {
+    let point = node.range().start_point;
+    compile_err(&format!(
+        "{template_path}:{}:{}: {message}",
+        point.row + 1,
+        point.column + 1
+    ))
+}
+
 /// Push a compile error statement.
 fn push_err(stmts: &mut Vec<Stmt>, msg: String) {
     stmts.push(Stmt::Dynamic(compile_err(&msg)));
@@ -31,11 +46,17 @@ fn push_err(stmts: &mut Vec<Stmt>, msg: String) {
 /// Tracks pre-formatted nesting depth for whitespace condense.
 struct Ctx {
     pre_depth: usize,
+    namespace: Namespace,
+    template_path: String,
 }
 
 impl Ctx {
-    fn new() -> Self {
-        Self { pre_depth: 0 }
+    fn new(template_path: &str) -> Self {
+        Self {
+            template_path: template_path.into(),
+            pre_depth: 0,
+            namespace: Namespace::Html,
+        }
     }
     fn in_pre(&self) -> bool {
         self.pre_depth > 0
@@ -78,19 +99,34 @@ fn as_directive(attr: &Attribute<String>) -> Option<(&str, Option<&str>)> {
 }
 
 fn gen_open_tag(
+    ctx: &Ctx,
     stmts: &mut Vec<Stmt>,
     tag: &str,
     attrs: Option<&RangeNode<String, Attributes<String>>>,
 ) {
-    let info = classify_attrs(attrs);
+    let lower_tag = tag.to_ascii_lowercase();
+    let info = classify_attrs(
+        attrs,
+        &lower_tag,
+        ctx.namespace.element(&lower_tag),
+        &ctx.template_path,
+    );
     stmts.push(Stmt::Static(format!("<{}", tag)));
     for attr_ts in info.regular_attrs {
         stmts.push(Stmt::Dynamic(attr_ts));
     }
 }
 
-pub(crate) fn generate_body(doc: &RangeNode<String, Document<String>>) -> TokenStream {
-    let mut ctx = Ctx::new();
+pub(crate) fn generate_body(
+    doc: &RangeNode<String, Document<String>>,
+    template_path: &str,
+) -> TokenStream {
+    if let Err(error) =
+        crate::attr::validate_interpolations(doc.hemplate().children(), template_path)
+    {
+        return error;
+    }
+    let mut ctx = Ctx::new(template_path);
     let mut stmts = Vec::new();
     if let Some(dt) = doc.hemplate().doctype() {
         stmts.push(Stmt::Static(dt.content().to_string()));
@@ -147,7 +183,7 @@ fn gen_children(
             }
             HemplateNode::Text(text) => {
                 if ctx.in_pre() {
-                    gen_text_pre(stmts, text, i == 0);
+                    gen_text_pre(stmts, text, i == 0, &ctx.template_path);
                 } else if is_text_ws_only(text) {
                     if should_remove_ws_text(children, i, text) {
                         // Whitespace removed by condense rules.
@@ -168,7 +204,7 @@ fn gen_children(
                         stmts.push(Stmt::Static(" ".to_string()));
                     }
                 } else {
-                    gen_text_condensed(stmts, text);
+                    gen_text_condensed(stmts, text, &ctx.template_path);
                 }
                 i += 1;
                 prev_was_chain = false;
@@ -267,12 +303,19 @@ fn gen_element_inner(ctx: &mut Ctx, stmts: &mut Vec<Stmt>, elem: &Element<String
                 }
                 return;
             }
-            gen_open_tag(stmts, tag, re.0.hemplate().1.as_ref());
+            gen_open_tag(ctx, stmts, tag, re.0.hemplate().1.as_ref());
             stmts.push(Stmt::Static(">".to_string()));
             if is_pre {
                 ctx.pre_depth += 1;
             }
+            let parent_namespace = ctx.namespace;
+            let lower_tag = tag.to_ascii_lowercase();
+            ctx.namespace = ctx
+                .namespace
+                .element(&lower_tag)
+                .children(&lower_tag, re.0.hemplate().1.as_ref());
             gen_children(ctx, stmts, &re.1);
+            ctx.namespace = parent_namespace;
             if is_pre {
                 ctx.pre_depth -= 1;
             }
@@ -280,6 +323,7 @@ fn gen_element_inner(ctx: &mut Ctx, stmts: &mut Vec<Stmt>, elem: &Element<String
         }
         Element::VoidElement(ve) => {
             gen_open_tag(
+                ctx,
                 stmts,
                 ve.0.hemplate().0.content(),
                 ve.0.hemplate().1.as_ref(),
@@ -288,26 +332,27 @@ fn gen_element_inner(ctx: &mut Ctx, stmts: &mut Vec<Stmt>, elem: &Element<String
         }
         Element::SelfClosingElement(sc) => {
             let tag = sc.0.content();
-            gen_open_tag(stmts, tag, sc.1.as_ref());
+            gen_open_tag(ctx, stmts, tag, sc.1.as_ref());
             // Non-void self-closing tags (e.g. <div/>) expand to <div></div>
             stmts.push(Stmt::Static(format!("></{tag}>")));
         }
         Element::ScriptElement(se) => {
-            gen_raw_text_element(stmts, se.0.hemplate(), se.1.as_ref());
+            gen_raw_text_element(ctx, stmts, se.0.hemplate(), se.1.as_ref());
         }
         Element::StyleElement(se) => {
-            gen_raw_text_element(stmts, se.0.hemplate(), se.1.as_ref());
+            gen_raw_text_element(ctx, stmts, se.0.hemplate(), se.1.as_ref());
         }
     }
 }
 
 fn gen_raw_text_element(
+    ctx: &Ctx,
     stmts: &mut Vec<Stmt>,
     start_tag: &StartTag<String>,
     raw: Option<&RangeNode<String, RawText>>,
 ) {
     let tag = start_tag.0.content();
-    gen_open_tag(stmts, tag, start_tag.1.as_ref());
+    gen_open_tag(ctx, stmts, tag, start_tag.1.as_ref());
     stmts.push(Stmt::Static(">".to_string()));
     if let Some(raw) = raw {
         stmts.push(Stmt::Static(raw.content().to_string()));

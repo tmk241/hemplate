@@ -1,0 +1,6 @@
+<p style="color: {+ self.a +}">a</p>
+<P STYLE="{+ self.b +}">b</P>
+<iframe srcdoc="{+ self.c +}"></iframe>
+<base href="{+ self.d +}">
+<meta http-equiv="refresh" content="0;url={+ self.e +}">
+<meta http-equiv="{+ self.f +}" content="x">

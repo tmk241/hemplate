@@ -5,6 +5,8 @@ use tree_sitter::{Node, Range};
 
 use crate::error::{BuildError, ExtractionError, ParseError};
 
+mod interpolation_validation;
+
 /// AST node types for attributes.
 pub mod attribute;
 /// AST node types for elements.
@@ -124,6 +126,7 @@ where
         message: "parser returned None".to_string(),
     })?;
     let root = tree.root_node();
+    interpolation_validation::validate_interpolations(root, input.as_ref().as_ref())?;
 
     Ok(RangeNode::<S, Document<S>>::extract(&root, input)?)
 }

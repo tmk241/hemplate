@@ -1,0 +1,60 @@
+==================
+Regular elements nest inside a custom element
+==================
+<user-card><span>name</span></user-card>
+---
+(document
+  (element
+    (regular_element
+      (start_tag (tag_name))
+      (element
+        (regular_element
+          (start_tag (tag_name))
+          (text (text_chunk))
+          (end_tag (tag_name))))
+      (end_tag (tag_name)))))
+
+==================
+Void element ends before following sibling content
+==================
+<br><p>after</p>
+---
+(document
+  (element (void_element (start_tag (tag_name))))
+  (element
+    (regular_element
+      (start_tag (tag_name))
+      (text (text_chunk))
+      (end_tag (tag_name)))))
+
+==================
+Self-closing non-void element has no separate end tag node
+==================
+<user-card/>
+---
+(document
+  (element (self_closing_element (tag_name))))
+
+==================
+Script body owns raw text rather than HTML or interpolation nodes
+==================
+<script>if (a < b) { render("<p>{+ name +}</p>"); }</script>
+---
+(document
+  (element
+    (script_element
+      (start_tag (tag_name))
+      (raw_text)
+      (end_tag (tag_name)))))
+
+==================
+Style body owns raw text including braces and less-than signs
+==================
+<style>.status::before { content: "<ready>"; }</style>
+---
+(document
+  (element
+    (style_element
+      (start_tag (tag_name))
+      (raw_text)
+      (end_tag (tag_name)))))

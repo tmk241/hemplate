@@ -12,8 +12,12 @@ pub(super) fn load(
     let dir = extract_dir_attribute(attrs, name)?;
     let snake = super::to_snake_case(&name.to_string());
     let path = resolve_template_path(&dir, &snake, name)?;
-    let ast = hemplate_core::ast::build_ast_from_file(Path::new(&path))
-        .map_err(|error| syn::Error::new_spanned(name, format!("hemplate: {error}")))?;
+    let ast = hemplate_core::ast::build_ast_from_file(Path::new(&path)).map_err(|error| {
+        syn::Error::new_spanned(
+            name,
+            format!("hemplate: {}", build_error_message(&path, error)),
+        )
+    })?;
     Ok(TemplateSource { path, ast })
 }
 
@@ -24,8 +28,32 @@ pub(super) fn load_variant(
 ) -> Result<hemplate_core::ast::RangeNode<String, hemplate_core::ast::Document<String>>, syn::Error>
 {
     hemplate_core::ast::build_ast_from_file(Path::new(template_path)).map_err(|error| {
-        syn::Error::new_spanned(enum_name, format!("hemplate: variant {variant}: {error}"))
+        syn::Error::new_spanned(
+            enum_name,
+            format!(
+                "hemplate: variant {variant}: {}",
+                build_error_message(template_path, error)
+            ),
+        )
     })
+}
+
+pub(super) fn diagnostic_path(template_path: &str) -> String {
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".into());
+    Path::new(template_path)
+        .strip_prefix(manifest_dir)
+        .unwrap_or_else(|_| Path::new(template_path))
+        .display()
+        .to_string()
+}
+
+fn build_error_message(path: &str, error: hemplate_core::error::BuildError) -> String {
+    match error {
+        hemplate_core::error::BuildError::Parse(error) => {
+            format!("{}: {error}", diagnostic_path(path))
+        }
+        other => other.to_string(),
+    }
 }
 
 pub(super) fn tracked_dependency(template_path: &str) -> proc_macro2::TokenStream {

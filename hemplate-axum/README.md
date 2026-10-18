@@ -1,6 +1,16 @@
 # hemplate-axum
 
-Axum response wrappers for Hemplate views.
+Axum response wrappers for Hemplate views. Requires Rust 1.91 or newer.
+
+```toml
+[dependencies]
+hemplate = "0.4.0"
+hemplate-axum = "0.4.0"
+```
+
+When migrating from 0.3, update the facade and adapter together: both must use
+`hemplate-runtime` 0.3 so their `Hemplate` traits agree. Response behavior is
+unchanged; templates now enforce the facade's strict attribute contexts.
 
 ```rust
 use hemplate::{Hemplate, RenderError};

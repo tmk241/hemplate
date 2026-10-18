@@ -1,0 +1,16 @@
+<a id="relative" href="/users/{+ self.id +}">a</a>
+<a id="query" href="?q={+ self.query +}&amp;page=1">b</a>
+<a id="fragment" href="#{+ self.id +}">c</a>
+<a id="https" href="https://example.com/{+ self.id +}">d</a>
+<a id="mail" href="mailto:{+ self.id +}">e</a>
+<a id="url" href="{+ self.url +}">f</a>
+<a id="bound" +href="self.url">g</a>
+<a id="route" href="{+ self.route +}">h</a>
+<a id="data" href="{+ self.data_url +}">i</a>
+<img id="srcset" srcset="{+ self.srcset +}">
+<button id="script" onclick="{+ self.script +}">j</button>
+<p id="style" style="{+ self.style +}">k</p>
+<script id="asset" src="{+ self.asset +}"></script>
+<p id="text" data-x="{+ self.text +}" title="{+ self.text +}">l</p>
+<meta name="description" content="{+ self.text +}">
+<a id="authored" href="javascript:void(0)" onclick="save()">m</a>

@@ -1,0 +1,2 @@
+<p>ok</p>
+<p>{+ self.value? +}</p>

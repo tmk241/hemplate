@@ -1,0 +1,5 @@
+<a href="{+ self.a +}">a</a>
+<a HREF="{+ self.b +}">b</a>
+<a +href="self.c">c</a>
+<img src="{+ self.d +}">
+<form action="{+ self.e +}"></form>

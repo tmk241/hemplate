@@ -1,0 +1,4 @@
+<button onclick="greet('{+ self.a +}')">a</button>
+<button ONCLICK="greet({+ self.b +})">b</button>
+<button +onclick="self.c">c</button>
+<x-chart onselect="{+ self.d +}"></x-chart>

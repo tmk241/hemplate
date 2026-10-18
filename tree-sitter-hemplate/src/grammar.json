@@ -368,34 +368,8 @@
         "type": "PREC",
         "value": -1,
         "content": {
-          "type": "SEQ",
-          "members": [
-            {
-              "type": "PATTERN",
-              "value": "[:@#?*.\\[(]*[a-zA-Z_$][a-zA-Z0-9_$.\\-:|#\\])]*"
-            },
-            {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "CHOICE",
-                  "members": [
-                    {
-                      "type": "STRING",
-                      "value": " = "
-                    },
-                    {
-                      "type": "STRING",
-                      "value": "="
-                    }
-                  ]
-                },
-                {
-                  "type": "BLANK"
-                }
-              ]
-            }
-          ]
+          "type": "PATTERN",
+          "value": "[:@#?*.\\[(]*[a-zA-Z_$][a-zA-Z0-9_$.\\-:|#\\])]*"
         }
       }
     },
@@ -484,46 +458,20 @@
                   "value": "case"
                 }
               ]
-            },
-            {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "CHOICE",
-                  "members": [
-                    {
-                      "type": "STRING",
-                      "value": " = "
-                    },
-                    {
-                      "type": "STRING",
-                      "value": "="
-                    }
-                  ]
-                },
-                {
-                  "type": "BLANK"
-                }
-              ]
             }
           ]
         }
       }
     },
     "_equals_token": {
-      "type": "IMMEDIATE_TOKEN",
+      "type": "TOKEN",
       "content": {
-        "type": "CHOICE",
-        "members": [
-          {
-            "type": "STRING",
-            "value": " = "
-          },
-          {
-            "type": "STRING",
-            "value": "="
-          }
-        ]
+        "type": "PREC",
+        "value": 2,
+        "content": {
+          "type": "PATTERN",
+          "value": "[ \\t\\r\\n\\f]*=[ \\t\\r\\n\\f]*"
+        }
       }
     },
     "attribute_value": {
@@ -555,15 +503,11 @@
           "type": "CHOICE",
           "members": [
             {
-              "type": "CHOICE",
+              "type": "SEQ",
               "members": [
                 {
-                  "type": "PREC",
-                  "value": 10,
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "quoted_expression"
-                  }
+                  "type": "SYMBOL",
+                  "name": "_equals_token"
                 },
                 {
                   "type": "SYMBOL",
@@ -589,8 +533,17 @@
           "type": "CHOICE",
           "members": [
             {
-              "type": "SYMBOL",
-              "name": "attribute_value"
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "_equals_token"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "attribute_value"
+                }
+              ]
             },
             {
               "type": "BLANK"
@@ -609,6 +562,10 @@
         {
           "type": "SYMBOL",
           "name": "attribute_name"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_equals_token"
         },
         {
           "type": "SYMBOL",

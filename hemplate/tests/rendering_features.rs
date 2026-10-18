@@ -139,7 +139,8 @@ fn void_elements_have_no_closing_tags() {
 struct DynamicAttrs {
     css_class: String,
     element_id: String,
-    url: String,
+    // A URL attribute that is bound as a whole takes a checked URL.
+    url: hemplate::Url,
     label: String,
 }
 
@@ -148,7 +149,7 @@ fn dynamic_attrs_are_rendered() {
     let t = DynamicAttrs {
         css_class: "card".into(),
         element_id: "main".into(),
-        url: "/home".into(),
+        url: hemplate::Url::parse("/home").unwrap(),
         label: "Go Home".into(),
     };
     let html = t.render().unwrap();

@@ -1,0 +1,7 @@
+error: templates/ui_srcset_text.heml:1:13: hemplate: `srcset` takes a whole `hemplate::Srcset` and nothing else; candidates cannot be assembled from text, because a value could end its candidate and start another. Build the list with `Srcset::new().candidate(..)`
+ --> tests/ui/reject_srcset_text.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)

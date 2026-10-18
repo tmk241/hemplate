@@ -1,0 +1,5 @@
+error: hemplate: templates/ui_unsupported_interpolation.heml: parse error at byte 13: malformed or unsupported interpolation at line 2, column 4; use a supported expression and matching `{+ ... +}` or `{+= ... =+}` delimiters
+ --> tests/ui/fail_unsupported_interpolation.rs:4:8
+  |
+4 | struct UiUnsupportedInterpolation;
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^

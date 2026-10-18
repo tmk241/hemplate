@@ -1,0 +1,1 @@
+<p>{+= self.next() =+}|{+ self.next() +}</p><pre>{+= self.next() =+}|{+ self.next() +}</pre><textarea>{+= self.next() =+}</textarea>

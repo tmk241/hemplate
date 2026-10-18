@@ -1,0 +1,24 @@
+<input +checked="self.enabled" +DISABLED="self.enabled" +required="self.enabled" data-after="ok">
+<button +disabled="false">Save</button>
+<input +checked="true">
+<div +hidden="self.value" +contenteditable="self.value" +spellcheck="self.value" +draggable="self.value" +data-checked="self.value" +aria-disabled="self.value" +custom="self.value"></div>
+<a +download="self.value"></a><input +capture="self.value">
+<my-input +checked="self.value" +disabled="self.value"></my-input>
+<svg +disabled="self.value"><input +checked="self.value"/><foreignObject><input +checked="self.enabled"></foreignObject></svg>
+<math +disabled="self.value"><input +checked="self.value"/><mtext><input +checked="self.enabled"/><mglyph +checked="self.value"/></mtext><annotation-xml encoding="TEXT/HTML"><input +checked="self.enabled"/></annotation-xml><annotation-xml encoding="application/xhtml+xml"><input +checked="self.enabled"/></annotation-xml></math>
+<svg><desc><input +checked="self.enabled"/></desc><title><input +checked="self.enabled"/></title></svg>
+<input h-if="self.enabled" +checked="self.enabled"><input h-else +disabled="self.enabled">
+<div id="bool-div" +autofocus="self.enabled" +inert="self.enabled" +itemscope="self.enabled"></div>
+<iframe id="bool-iframe" +allowfullscreen="self.enabled"></iframe><script id="bool-script" +async="self.enabled" +defer="self.enabled" +nomodule="self.enabled"></script>
+<audio id="bool-audio" +autoplay="self.enabled" +controls="self.enabled" +loop="self.enabled" +muted="self.enabled"></audio><video id="bool-video" +playsinline="self.enabled"></video>
+<track id="bool-track" +default="self.enabled"><input id="bool-input" +formnovalidate="self.enabled" +multiple="self.enabled" +readonly="self.enabled"><img id="bool-img" +ismap="self.enabled">
+<form id="bool-form" +novalidate="self.enabled"></form><details id="bool-details" +open="self.enabled"></details><ol id="bool-ol" +reversed="self.enabled"></ol><option id="bool-option" +selected="self.enabled"></option>
+<template id="bool-template" +shadowrootclonable="self.enabled" +shadowrootdelegatesfocus="self.enabled" +shadowrootserializable="self.enabled"/>
+<INPUT id="bool-INPUT" +CHECKED="self.enabled">
+<div +disabled="self.value" +checked="self.value" +selected="self.value" +multiple="self.value" +open="self.value" +novalidate="self.value"></div>
+<unknown +checked="self.value"></unknown>
+<section id="hidden-state" +hidden="self.next_hidden()"></section>
+<unknown id="hidden-bool" +HIDDEN="self.enabled"></unknown>
+<my-input id="global-my-input" +AUTOFOCUS="self.enabled" +inert="self.enabled" +itemscope="self.enabled" +checked="self.value" +disabled="self.value"></my-input>
+<unknown id="global-unknown" +AUTOFOCUS="self.enabled" +inert="self.enabled" +itemscope="self.enabled" +checked="self.value" +disabled="self.value"></unknown>
+<svg +hidden="self.enabled" +inert="self.enabled"><g +hidden="self.value"></g></svg>

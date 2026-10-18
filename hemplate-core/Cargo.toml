@@ -1,6 +1,6 @@
 [package]
 name = "hemplate-core"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 license.workspace = true
 readme = "README.md"
@@ -16,7 +16,7 @@ surface = []
 
 [dependencies]
 tree-sitter = "0.25"
-hemplate-parser = { version = "0.1.0", path = "../hemplate-parser" }
+hemplate-parser = { version = "0.2.0", path = "../hemplate-parser" }
 thiserror = "2"
 
 [dev-dependencies]

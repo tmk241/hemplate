@@ -1,0 +1,160 @@
+==================
+Escaped interpolation owns a member expression within text
+==================
+<p>{+ self.name +}</p>
+---
+(document
+  (element
+    (regular_element
+      (start_tag (tag_name))
+      (text
+        (interpolation
+          (interpolation_expression
+            (expression (member_expression (identifier) (identifier))))))
+      (end_tag (tag_name)))))
+
+==================
+Raw interpolation has a distinct node and explicit delimiters
+==================
+<p>{+= trusted =+}</p>
+---
+(document
+  (element
+    (regular_element
+      (start_tag (tag_name))
+      (text
+        (raw_interpolation
+          (interpolation_expression (expression (identifier)))))
+      (end_tag (tag_name)))))
+
+==================
+Quoted ordinary attribute keeps literal text and escaped interpolation
+==================
+<input title="Hello {+ self.name +}!">
+---
+(document
+  (element
+    (void_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (ignored_whitespace_segment (ignored_soft_whitespace (space)))
+          (attribute
+            (regular_attribute
+              (attribute_name)
+              (attribute_value
+                (quoted_value
+                  (double_quoted_value
+                    (text
+                      (text_chunk)
+                      (whitespace_segment (soft_whitespace (space)))
+                      (interpolation
+                        (interpolation_expression
+                          (expression (member_expression (identifier) (identifier)))))
+                      (text_chunk))))))))))))
+
+==================
+Conditional chain uses directive attributes including valueless else
+==================
+<p h-if="self.a">a</p><p h-else-if="self.b">b</p><p h-else>c</p>
+---
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (attribute
+            (template_directive
+              (template_directive_name)
+              (attribute_value (quoted_value (double_quoted_value (text (text_chunk)))))))))
+      (text (text_chunk))
+      (end_tag (tag_name))))
+  (element
+    (regular_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (attribute
+            (template_directive
+              (template_directive_name)
+              (attribute_value (quoted_value (double_quoted_value (text (text_chunk)))))))))
+      (text (text_chunk))
+      (end_tag (tag_name))))
+  (element
+    (regular_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (attribute (template_directive (template_directive_name)))))
+      (text (text_chunk))
+      (end_tag (tag_name)))))
+
+==================
+Loop directive keeps its binding as attribute text and body as interpolation
+==================
+<li h-for="item in items">{+ item +}</li>
+---
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (attribute
+            (template_directive
+              (template_directive_name)
+              (attribute_value
+                (quoted_value
+                  (double_quoted_value
+                    (text
+                      (text_chunk)
+                      (whitespace_segment (soft_whitespace (space)))
+                      (text_chunk)
+                      (whitespace_segment (soft_whitespace (space)))
+                      (text_chunk)))))))))
+      (text
+        (interpolation
+          (interpolation_expression (expression (identifier)))))
+      (end_tag (tag_name)))))
+
+==================
+Match and case directives remain attached to their owning elements
+==================
+<template h-match="self.kind"><p h-case="Some(item)">{+ item +}</p><p h-case="_">other</p></template>
+---
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (attribute
+            (template_directive
+              (template_directive_name)
+              (attribute_value (quoted_value (double_quoted_value (text (text_chunk)))))))))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name)
+            (attributes
+              (attribute
+                (template_directive
+                  (template_directive_name)
+                  (attribute_value (quoted_value (double_quoted_value (text (text_chunk)))))))))
+          (text
+            (interpolation
+              (interpolation_expression (expression (identifier)))))
+          (end_tag (tag_name))))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name)
+            (attributes
+              (attribute
+                (template_directive
+                  (template_directive_name)
+                  (attribute_value (quoted_value (double_quoted_value (text (text_chunk)))))))))
+          (text (text_chunk))
+          (end_tag (tag_name))))
+      (end_tag (tag_name)))))

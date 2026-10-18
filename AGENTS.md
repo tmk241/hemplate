@@ -1,30 +1,27 @@
-# AGENTS.md
+# Working on Hemplate
 
-## Overview
+## Where things belong
 
-Hemplate is a Rust workspace for compile-time HTML templates. `README.md` is the
-user entry point; public APIs and tests establish supported behavior. Keep these
-sources consistent.
-
-## Workspace layout
-
-Host-side template compilation follows this dependency chain:
+Host compilation follows:
 
 ```text
 tree-sitter-hemplate -> hemplate-parser -> hemplate-core -> hemplate-derive
 ```
 
-Generated templates render through `hemplate-runtime`; the `hemplate` facade
-combines that runtime with optional derive and host APIs. `hemplate-axum`
-provides the optional Axum response integration. Keep changes in
-the package that owns the behavior; framework-specific behavior belongs in its
-integration package rather than the grammar, parser, core, derive, or facade.
+Generated templates use the parser-free `hemplate-runtime`. `hemplate` is the
+facade; Axum integration belongs in `hemplate-axum`, not the compiler or runtime.
 
-## Build and test
+Keep interpolation escaped and context-checked, raw HTML explicit, and errors
+tied to template locations. Preserve ordinary HTML and custom attributes.
+Update docs and focused tests when syntax, APIs or compatibility change.
 
-Run the narrowest relevant test while editing. Before completing a change, run:
+## Checks
+
+Start grammar changes in `tree-sitter-hemplate/grammar.js`, regenerate the parser
+and test its consumers. Before finishing, run:
 
 ```console
+(cd tree-sitter-hemplate && tree-sitter test --rebuild)
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-targets --all-features
@@ -32,32 +29,11 @@ cargo deny check licenses sources
 cargo check -p hemplate-wasm-runtime-test --target wasm32-unknown-unknown
 ```
 
-Changes to publishable packages require an archive-based `cargo package` check.
-Grammar changes begin in `tree-sitter-hemplate/grammar.js`; regenerate parser
-sources and run every package that consumes the changed nodes.
+Verify changed publishable packages with `cargo package`, including its archive
+build. Keep credentials, machine-local files, temporary plans and build/test
+output out of Git.
 
-## Code guidelines
-
-- Preserve escaped interpolation as the default; raw output must remain explicit.
-- Add or update a focused test for behavior changes and regressions.
-- Keep diagnostics actionable and tied to template source locations.
-- Keep generated parser files synchronized with the grammar.
-- Preserve generic HTML and custom attribute pass-through.
-- Avoid unrelated refactors and premature abstractions.
-- Update public documentation when syntax, package boundaries, or compatibility change.
-
-## Repository hygiene
-
-Do not add machine-specific paths, private URLs, credentials, editor-local state,
-or generated build output. Do not commit package archives, coverage reports,
-benchmark output, fuzz artifacts, `target/`, or temporary planning files.
-
-## Licensing
-
-New dependencies must pass `cargo deny check licenses sources`. Preserve all
-license and attribution files. Changes to the embedded Tree-sitter scanner, tag
-definitions, or support headers must retain the notices in
-`tree-sitter-hemplate/THIRD_PARTY_LICENSES.md` and keep that file in the crate
-archive. A prebuilt binary distribution must additionally ship notices for its
-resolved dependency graph; `cargo deny` verifies compatibility but does not
-create that notice bundle.
+Preserve licenses and attribution, including
+`tree-sitter-hemplate/THIRD_PARTY_LICENSES.md` in the crate archive. Binary
+distributions also need notices for their resolved dependencies; `cargo deny`
+checks licenses but does not assemble those notices.

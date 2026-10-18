@@ -1,0 +1,7 @@
+error: templates/ui_elided_attribute.heml:2:17: hemplate: invalid expression in attribute `title`: unexpected end of input, expected an expression
+ --> tests/ui/fail_elided_attribute.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)

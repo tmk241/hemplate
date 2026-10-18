@@ -10,7 +10,7 @@
 use hemplate_core::ast::*;
 use quote::quote;
 
-use crate::codegen::Stmt;
+use crate::codegen::{source_error, Stmt};
 
 fn is_ws_char(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\n' | '\r')
@@ -84,7 +84,7 @@ pub(crate) fn is_pre_tag(tag: &str) -> bool {
 }
 
 /// Emit text with whitespace condensing (normal flow).
-pub(crate) fn gen_text_condensed(stmts: &mut Vec<Stmt>, text: &Text<String>) {
+pub(crate) fn gen_text_condensed(stmts: &mut Vec<Stmt>, text: &Text<String>, template_path: &str) {
     let mut prev_ws = false;
     for seg in &text.0 {
         match seg.hemplate() {
@@ -102,7 +102,7 @@ pub(crate) fn gen_text_condensed(stmts: &mut Vec<Stmt>, text: &Text<String>) {
                             interp.0.content(),
                             e
                         );
-                        stmts.push(Stmt::Dynamic(quote! { compile_error!(#msg); }));
+                        stmts.push(Stmt::Dynamic(source_error(template_path, &interp.0, &msg)));
                     }
                 }
             }
@@ -112,8 +112,9 @@ pub(crate) fn gen_text_condensed(stmts: &mut Vec<Stmt>, text: &Text<String>) {
                     Ok(expr) => {
                         stmts.push(Stmt::Dynamic(quote! {
                             {
-                                let _: () = ::hemplate::__runtime::render::RawGuard(&(#expr)).check();
-                                ::hemplate::__runtime::render::Raw(&(#expr)).render_to(buf)?;
+                                let value = &(#expr);
+                                let _: () = ::hemplate::__runtime::render::RawGuard(value).check();
+                                ::hemplate::__runtime::render::Raw(value).render_to(buf)?;
                             }
                         }));
                     }
@@ -123,7 +124,7 @@ pub(crate) fn gen_text_condensed(stmts: &mut Vec<Stmt>, text: &Text<String>) {
                             interp.0.content(),
                             e
                         );
-                        stmts.push(Stmt::Dynamic(quote! { compile_error!(#msg); }));
+                        stmts.push(Stmt::Dynamic(source_error(template_path, &interp.0, &msg)));
                     }
                 }
             }
@@ -139,7 +140,12 @@ pub(crate) fn gen_text_condensed(stmts: &mut Vec<Stmt>, text: &Text<String>) {
 
 /// Emit text verbatim for pre-formatted context. Normalise \r\n → \n
 /// and strip first newline after opening `<pre>`/`<textarea>` per HTML spec.
-pub(crate) fn gen_text_pre(stmts: &mut Vec<Stmt>, text: &Text<String>, is_first_child: bool) {
+pub(crate) fn gen_text_pre(
+    stmts: &mut Vec<Stmt>,
+    text: &Text<String>,
+    is_first_child: bool,
+    template_path: &str,
+) {
     for (seg_idx, seg) in text.0.iter().enumerate() {
         match seg.hemplate() {
             TextSegment::Interpolation(interp) => {
@@ -155,7 +161,7 @@ pub(crate) fn gen_text_pre(stmts: &mut Vec<Stmt>, text: &Text<String>, is_first_
                             interp.0.content(),
                             e
                         );
-                        stmts.push(Stmt::Dynamic(quote! { compile_error!(#msg); }));
+                        stmts.push(Stmt::Dynamic(source_error(template_path, &interp.0, &msg)));
                     }
                 }
             }
@@ -164,8 +170,9 @@ pub(crate) fn gen_text_pre(stmts: &mut Vec<Stmt>, text: &Text<String>, is_first_
                     Ok(expr) => {
                         stmts.push(Stmt::Dynamic(quote! {
                             {
-                                let _: () = ::hemplate::__runtime::render::RawGuard(&(#expr)).check();
-                                ::hemplate::__runtime::render::Raw(&(#expr)).render_to(buf)?;
+                                let value = &(#expr);
+                                let _: () = ::hemplate::__runtime::render::RawGuard(value).check();
+                                ::hemplate::__runtime::render::Raw(value).render_to(buf)?;
                             }
                         }));
                     }
@@ -175,7 +182,7 @@ pub(crate) fn gen_text_pre(stmts: &mut Vec<Stmt>, text: &Text<String>, is_first_
                             interp.0.content(),
                             e
                         );
-                        stmts.push(Stmt::Dynamic(quote! { compile_error!(#msg); }));
+                        stmts.push(Stmt::Dynamic(source_error(template_path, &interp.0, &msg)));
                     }
                 }
             }

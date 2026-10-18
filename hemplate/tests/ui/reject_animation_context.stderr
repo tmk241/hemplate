@@ -1,0 +1,29 @@
+error[E0277]: `String` cannot be interpolated into an SVG animation attribute
+ --> tests/ui/reject_animation_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ an animation can set `href` to a `javascript:` URL
+  |
+  = help: the trait `AnimationValue` is not implemented for `String`
+  = note: use fixed values, or vouch for them with `hemplate::TrustedAnimation::new_unchecked(..)`
+note: required by a bound in `__hemplate_animation_attr_values_at_ui_animation_context_heml_line_1_col_43`
+ --> tests/ui/reject_animation_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_animation_attr_values_at_ui_animation_context_heml_line_1_col_43`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `&str` cannot be interpolated into an SVG animation attribute
+ --> tests/ui/reject_animation_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ an animation can set `href` to a `javascript:` URL
+  |
+  = help: the trait `AnimationValue` is not implemented for `&str`
+  = note: use fixed values, or vouch for them with `hemplate::TrustedAnimation::new_unchecked(..)`
+note: required by a bound in `__hemplate_animation_attr_to_at_ui_animation_context_heml_line_1_col_97`
+ --> tests/ui/reject_animation_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_animation_attr_to_at_ui_animation_context_heml_line_1_col_97`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)

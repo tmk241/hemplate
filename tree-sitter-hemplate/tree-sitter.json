@@ -1,0 +1,32 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "hemplate",
+      "camelcase": "Hemplate",
+      "title": "Hemplate",
+      "scope": "text.html.hemplate",
+      "path": ".",
+      "file-types": ["heml"],
+      "injection-regex": "^hemplate$"
+    }
+  ],
+  "metadata": {
+    "version": "0.2.0",
+    "license": "MIT",
+    "description": "Tree-sitter grammar for Hemplate templates",
+    "links": {
+      "repository": "https://github.com/tmk241/hemplate"
+    }
+  },
+  "bindings": {
+    "c": false,
+    "go": false,
+    "java": false,
+    "node": false,
+    "python": false,
+    "rust": true,
+    "swift": false,
+    "zig": false
+  }
+}

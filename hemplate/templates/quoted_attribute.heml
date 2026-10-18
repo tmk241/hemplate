@@ -1,0 +1,1 @@
+<div title='say "hello" &amp; {+ self.value +} "bye"' data-other="&quot;{+ self.value +}"></div>

@@ -1,0 +1,8 @@
+<main id="page">
+<p id="a" data-x="{+ self.payload +}" title="{+ self.payload +}">text</p>
+<input id="b" value="{+ self.payload +}">
+<a id="c" href="/users/{+ self.payload +}">path</a>
+<a id="d" href="?q={+ self.payload +}">query</a>
+<a id="e" href="#{+ self.payload +}">fragment</a>
+<button id="f" data-name="{+ self.payload +}" onclick="window.__clicked = (window.__clicked || 0) + 1">button</button>
+</main>

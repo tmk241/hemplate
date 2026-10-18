@@ -119,7 +119,7 @@ module.exports = grammar({
     // Keep ordinary attribute names permissive so custom HTML attributes pass through.
     attribute_name: () =>
       token(
-        prec(-1, seq(/[:@#?*.\[(]*[a-zA-Z_$][a-zA-Z0-9_$.\-:|#\])]*/, optional(choice(" = ", "=")))),
+        prec(-1, /[:@#?*.\[(]*[a-zA-Z_$][a-zA-Z0-9_$.\-:|#\])]*/),
       ),
 
     // Then use it in your attribute rule
@@ -139,21 +139,21 @@ module.exports = grammar({
       token(prec(1, seq(
         "h-",
         choice("if", "else-if", "else", "for", "match", "case"),
-        optional(choice(" = ", "=")),
       ))),
 
-    // Define a token specifically for equals
-    _equals_token: () => token.immediate(choice(" = ", "=")),
+    // Prefer an entire assignment separator over a standalone whitespace token.
+    // The equals sign remains mandatory; whitespace alone is never a value.
+    _equals_token: () => token(prec(2, /[ \t\r\n\f]*=[ \t\r\n\f]*/)),
 
     attribute_value: ($) => seq(choice($.quoted_value, $.unquoted_value)),
 
     template_directive: ($) =>
-      seq($.template_directive_name, optional($.attribute_value)),
+      seq($.template_directive_name, optional(seq($._equals_token, $.attribute_value))),
 
     regular_attribute: ($) =>
-      seq($.attribute_name, optional($.attribute_value)),
+      seq($.attribute_name, optional(seq($._equals_token, $.attribute_value))),
 
-    dynamic_attribute: ($) => seq("+", $.attribute_name, $.quoted_expression),
+    dynamic_attribute: ($) => seq("+", $.attribute_name, $._equals_token, $.quoted_expression),
 
     hard_whitespace: ($) => prec.right(repeat1($.newline)),
 

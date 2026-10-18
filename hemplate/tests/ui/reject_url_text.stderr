@@ -1,0 +1,7 @@
+error: templates/ui_url_text.heml:1:9: hemplate: URL attribute `href` starts with scheme `javascript:`, which is not allowed with a value (http, https, mailto and tel are). Write the whole URL as fixed text, or use `hemplate::TrustedUrl::new_unchecked(..)` for it
+ --> tests/ui/reject_url_text.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)

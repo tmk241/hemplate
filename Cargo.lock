@@ -231,7 +231,7 @@ checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
 name = "hemplate"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hemplate-core",
  "hemplate-derive",
@@ -241,7 +241,7 @@ dependencies = [
 
 [[package]]
 name = "hemplate-axum"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "axum",
  "axum-core",
@@ -253,8 +253,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hemplate-browser-vectors"
+version = "0.1.0"
+dependencies = [
+ "hemplate",
+]
+
+[[package]]
 name = "hemplate-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "hemplate-parser",
  "proptest",
@@ -272,7 +279,7 @@ dependencies = [
 
 [[package]]
 name = "hemplate-derive"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hemplate-core",
  "proc-macro2",
@@ -282,7 +289,7 @@ dependencies = [
 
 [[package]]
 name = "hemplate-parser"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "tree-sitter",
  "tree-sitter-hemplate",
@@ -290,7 +297,7 @@ dependencies = [
 
 [[package]]
 name = "hemplate-runtime"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "thiserror",
 ]
@@ -956,7 +963,7 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-hemplate"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cc",
  "tree-sitter",

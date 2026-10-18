@@ -1,0 +1,6 @@
+<script src="{+ self.a +}"></script>
+<script src="/assets/{+ self.b +}.js"></script>
+<object data="{+ self.c +}"></object>
+<embed src="{+ self.d +}">
+<link rel="stylesheet" href="{+ self.e +}">
+<link +rel="self.a" href="{+ self.f +}">

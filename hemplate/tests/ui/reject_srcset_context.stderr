@@ -1,0 +1,31 @@
+error[E0277]: `String` cannot be interpolated into a `srcset` attribute
+ --> tests/ui/reject_srcset_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ every candidate in a srcset must be a checked URL
+  |
+  = help: the trait `SrcsetValue` is not implemented for `String`
+  = note: build a `hemplate::Srcset` from checked `hemplate::Url` values
+  = note: or vouch for a list explicitly with `hemplate::TrustedSrcset::new_unchecked(..)`
+note: required by a bound in `__hemplate_srcset_attr_srcset_at_ui_srcset_context_heml_line_1_col_13`
+ --> tests/ui/reject_srcset_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_srcset_attr_srcset_at_ui_srcset_context_heml_line_1_col_13`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `&str` cannot be interpolated into a `srcset` attribute
+ --> tests/ui/reject_srcset_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ every candidate in a srcset must be a checked URL
+  |
+  = help: the trait `SrcsetValue` is not implemented for `&str`
+  = note: build a `hemplate::Srcset` from checked `hemplate::Url` values
+  = note: or vouch for a list explicitly with `hemplate::TrustedSrcset::new_unchecked(..)`
+note: required by a bound in `__hemplate_srcset_attr_srcset_at_ui_srcset_context_heml_line_2_col_16`
+ --> tests/ui/reject_srcset_context.rs:3:10
+  |
+3 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_srcset_attr_srcset_at_ui_srcset_context_heml_line_2_col_16`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
