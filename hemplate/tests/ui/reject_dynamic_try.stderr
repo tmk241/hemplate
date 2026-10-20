@@ -1,0 +1,5 @@
+error: hemplate: templates/ui_dynamic_try.heml: parse error at byte 15: malformed or unsupported dynamic attribute interpolation at line 1, column 16; use +name="supported expression"; prepare fallible values before rendering
+ --> tests/ui/reject_dynamic_try.rs:4:8
+  |
+4 | struct UiDynamicTry {
+  |        ^^^^^^^^^^^^

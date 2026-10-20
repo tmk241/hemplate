@@ -1,5 +1,5 @@
 //! Attribute contexts: what compiles, what renders, and what `Url` accepts
-//! (-010). The cases that must not compile are the trybuild
+//! The cases that must not compile are the trybuild
 //! fixtures `tests/ui/reject_*.rs`.
 
 use std::fmt;

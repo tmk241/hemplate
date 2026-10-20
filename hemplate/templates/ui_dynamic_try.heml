@@ -1,0 +1,1 @@
+<video><source +src="crate::view_url(&self.video_src)?" +type="self.video_media_type">Video unavailable.</video>

@@ -1,6 +1,6 @@
 [package]
 name = "hemplate-derive"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 license.workspace = true
 readme = "README.md"
@@ -19,4 +19,4 @@ proc-macro2 = "1"
 quote = "1"
 syn = { version = "2", features = ["full"] }
 
-hemplate-core = { version = "0.3.0", path = "../hemplate-core" }
+hemplate-core = { version = "0.3.1", path = "../hemplate-core" }

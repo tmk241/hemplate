@@ -19,6 +19,7 @@ fn compile_fail() {
     std::fs::create_dir_all(&templates).unwrap();
     for name in [
         "ui_malformed_interpolation",
+        "ui_dynamic_try",
         "ui_unsupported_interpolation",
         "ui_unterminated_attribute",
         "ui_elided_attribute",
@@ -42,6 +43,7 @@ fn compile_fail() {
     }
     let t = trybuild::TestCases::new();
     t.compile_fail("tests/ui/fail_*.rs");
+    t.compile_fail("tests/ui/reject_dynamic_try.rs");
 
     // Context rules: a plain value where the attribute is read as code, CSS, a
     // document, navigation, a loaded resource or an unchecked URL does not compile.

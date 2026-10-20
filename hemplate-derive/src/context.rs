@@ -1,5 +1,5 @@
 //! Which language an attribute value is read as, and what it takes to
-//! interpolate into it (-008).
+//! interpolate into it.
 //!
 //! HTML escaping protects text. Attributes such as `on*`, `style` or `href` are
 //! read again as JavaScript, CSS or a URL after the browser decodes them, so the

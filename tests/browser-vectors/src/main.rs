@@ -1,4 +1,4 @@
-//! A real-browser check that untrusted values cannot run code (-010).
+//! A real-browser check that untrusted values cannot run code.
 //!
 //! The server renders pages with real `#[derive(Hemplate)]` templates, putting
 //! the classic injection payloads into every context a value may still reach.

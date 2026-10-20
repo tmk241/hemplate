@@ -58,7 +58,7 @@ fn parts_of<'a>(segments: &[AttrValueSegment<'a>]) -> Vec<Part<'a>> {
 ///
 /// The helper function exists so a rejected value reports an error that names
 /// the context, the attribute and the template position: rustc prints "required
-/// by a bound in `<helper>`" next to the trait's own message ().
+/// by a bound in `<helper>`" next to the trait's own message.
 fn typed_value(
     context: Context,
     attribute: &str,

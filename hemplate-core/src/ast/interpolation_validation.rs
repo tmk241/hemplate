@@ -26,6 +26,36 @@ pub(super) fn validate_interpolations(root: Node<'_>, source: &str) -> Result<()
             ),
         });
     }
+    validate_dynamic_attributes(root, false)
+}
+
+/// A `+` token outside a complete dynamic attribute is a binding recovered by
+/// Tree-sitter, not ordinary text. Check before extraction: ERROR ancestors are
+/// otherwise discarded, sometimes together with the enclosing element's end tag.
+fn validate_dynamic_attributes(node: Node<'_>, in_error: bool) -> Result<(), ParseError> {
+    let in_error = in_error || node.is_error();
+    match node.kind() {
+        // These contexts own their contents; literal plus signs are not bindings.
+        "text" | "comment" | "raw_text" | "doctype" | "attribute_value" | "quoted_expression"
+        | "template_directive" => return Ok(()),
+        "dynamic_attribute" if !in_error && !node.has_error() => return Ok(()),
+        "+" => {
+            let position = node.start_position();
+            return Err(ParseError {
+                byte_offset: node.start_byte(),
+                message: format!(
+                    "malformed or unsupported dynamic attribute interpolation at line {}, column {}; \
+                     use +name=\"supported expression\"; prepare fallible values before rendering",
+                    position.row + 1,
+                    position.column + 1,
+                ),
+            });
+        }
+        _ => {}
+    }
+    for child in node.children(&mut node.walk()) {
+        validate_dynamic_attributes(child, in_error)?;
+    }
     Ok(())
 }
 

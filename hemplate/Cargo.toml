@@ -1,6 +1,6 @@
 [package]
 name = "hemplate"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 license.workspace = true
 readme = "README.md"
@@ -18,8 +18,8 @@ host = ["dep:hemplate-core"]
 
 [dependencies]
 hemplate-runtime = { version = "0.3.0", path = "../hemplate-runtime" }
-hemplate-core = { version = "0.3.0", path = "../hemplate-core", optional = true }
-hemplate-derive = { version = "0.4.0", path = "../hemplate-derive", optional = true }
+hemplate-core = { version = "0.3.1", path = "../hemplate-core", optional = true }
+hemplate-derive = { version = "0.4.1", path = "../hemplate-derive", optional = true }
 
 [dev-dependencies]
 trybuild = "1"

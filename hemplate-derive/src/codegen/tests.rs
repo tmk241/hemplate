@@ -186,12 +186,10 @@ fn ambiguous_boolean_namespace_is_rejected() {
 }
 
 #[test]
-fn empty_dynamic_attr_name_dropped_by_grammar() {
-    // `+="expr"` is not parsed as a dynamic attribute by tree-sitter.
-    // The grammar requires a name after `+`, so `+=` is treated as a
-    // regular attribute and silently dropped. No compile_error! needed
-    // at codegen level — grammar handles it.
-    assert_no_compile_error(r#"<div +="expr">test</div>"#);
+fn empty_dynamic_attr_name_is_rejected_before_codegen() {
+    let error = hemplate_core::ast::build_ast(Arc::new(r#"<div +="expr">test</div>"#.to_string()))
+        .unwrap_err();
+    assert!(error.to_string().contains("unsupported dynamic attribute"));
 }
 
 #[test]
@@ -371,7 +369,7 @@ fn merge_statics_empty_input() {
     assert!(merged.is_empty());
 }
 
-// --- Attribute contexts (-008) ---
+// --- Attribute contexts ---
 
 #[test]
 fn fixed_url_text_lets_plain_values_follow() {
@@ -516,14 +514,14 @@ fn fixed_text_written_by_the_author_is_not_touched() {
 fn a_rejected_value_names_its_context_attribute_and_template_position() {
     let output =
         codegen_from("<p>x</p>\n<button onclick=\"go({+ self.v +})\">x</button>").to_string();
-    // The helper's name reaches the compiler error ().
+    // The helper's name reaches the compiler error.
     assert!(
         output.contains("__hemplate_script_attr_onclick_at_inline_heml_line_2_col_17"),
         "{output}"
     );
 }
 
-// --- Interpolation in discarded content () ---
+// --- Interpolation in discarded content ---
 
 #[test]
 fn malformed_text_interpolation_in_discarded_content_is_still_diagnosed() {
@@ -553,7 +551,7 @@ fn malformed_text_interpolation_in_discarded_content_is_still_diagnosed() {
     assert!(!output.contains("never_used"), "{output}");
 }
 
-// --- Boundaries of the context rules (, ) ---
+// --- Boundaries of the context rules ---
 
 #[test]
 fn attributes_that_are_never_rendered_are_not_context_checked() {

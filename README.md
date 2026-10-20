@@ -63,8 +63,6 @@ See the crate documentation and tests for the complete supported behavior.
 ## Untrusted values and attribute contexts
 
 
-
-
 Escaping makes a value safe as *text*. Some attributes are read a second time as
 another language, after the browser has decoded them: `on*` as JavaScript, `style`
 as CSS, `srcdoc` as a document, `href` as a URL. `&#x27;` is turned back into `'`

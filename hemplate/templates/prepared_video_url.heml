@@ -1,0 +1,1 @@
+<video><source +src="self.video_src" +type="self.media_type()">Video unavailable.</video><p>After video.</p>
