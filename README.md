@@ -36,7 +36,56 @@ Create `templates/hello_view.heml` next to your package manifest:
 <h1>Hello {+ self.name +}</h1>
 ```
 
-Expressions in `{+ ... +}` are escaped before rendering. Raw interpolation uses `{+= ... =+}` and should only receive trusted HTML.
+In element content, `{+ ... +}` HTML-escapes ordinary `Display` values such as
+strings, but renders `Hemplate` values directly as nested components. Use
+`{+= ... =+}` only for already-produced, explicitly trusted HTML; it writes a
+`Display` value without escaping and rejects `Hemplate` components.
+
+## Compose components
+
+
+Define child views just like the outer view:
+
+```rust
+use hemplate::Hemplate;
+
+#[derive(Hemplate)]
+struct Header {
+    title: String,
+}
+
+#[derive(Hemplate)]
+struct Page {
+    header: Header,
+}
+```
+
+`templates/header.heml`:
+
+```html
+<h1>{+ self.title +}</h1>
+```
+
+`templates/page.heml`:
+
+```html
+<main>{+ self.header +}</main>
+```
+
+Render the outer `Page` normally. The child writes into the same output buffer:
+its `<h1>` remains markup, while its title is escaped. A title of `<Admin>`
+therefore renders as `<h1>&lt;Admin&gt;</h1>`, not an HTML element named `Admin`.
+A constructor returning a `Hemplate` value works the same way:
+`{+ Header::new(...) +}`. No child `.render()` call or raw interpolation is needed.
+
+`{+= ... =+}` is an explicit trust decision for existing HTML, not a component
+rendering operator. Do not pre-render components to strings just to insert them
+raw. Attribute interpolations have separate context checks, described below.
+
+When using **Hemx**, keep this same composition syntax inside templates, but use
+Hemx's generated renderer at the outer boundary to lower nested resources and
+handles. The application's generated `heml` Rust module is not a Hemplate
+operator. Hemplate alone has no knowledge of Hemx's resource protocol.
 
 ## Template syntax
 
