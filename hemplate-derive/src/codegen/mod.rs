@@ -88,9 +88,8 @@ pub(crate) fn raw_value(
     expr: &syn::Expr,
 ) -> TokenStream {
     let site = site_ident("raw_html", template_path, point);
+    let guard = site_ident("raw_component", template_path, point);
     quote! {{
-        #[allow(non_camel_case_types)]
-        struct #site {}
         #[allow(non_snake_case)]
         fn #site<T: ::hemplate::__runtime::HtmlValue + ?Sized>(
             value: &T,
@@ -98,12 +97,10 @@ pub(crate) fn raw_value(
         ) -> ::core::result::Result<(), ::hemplate::__runtime::error::RenderError> {
             ::hemplate::__runtime::render::render_raw(value, buf)
         }
+        #[allow(non_snake_case)]
+        fn #guard<G: ::hemplate::__runtime::render::RawOutputAllowed>(_: G) {}
         let __hemplate_raw = &(#expr);
-        let _: () = ::hemplate::__runtime::render::RawGuard::<_, #site>(
-            __hemplate_raw,
-            ::core::marker::PhantomData,
-        )
-        .check();
+        #guard(::hemplate::__runtime::render::RawGuard(__hemplate_raw).check());
         #site(__hemplate_raw, buf)?;
     }}
 }

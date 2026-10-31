@@ -101,24 +101,21 @@ impl<'a, T: ?Sized> PresentFallback<'a, T> for Present<'a, T> {
 
 /// Emitted by codegen before raw output to reject components at compile time.
 ///
-/// For a `Hemplate` type the inherent `check` returns
-/// [`RawInterpolationNotAllowedForHemplateTypes`], which fails the generated
-/// `let _: () = ..` binding; its type name is the error message. Components
-/// render with `{+ child +}`, never pre-rendered into raw output.
-///
-/// `L` is a marker named after the template position; it appears in that
-/// type name, so the error also says where the raw interpolation is.
+/// For a `Hemplate` type the inherent `check` returns [`RawComponent`], which
+/// fails the generated [`RawOutputAllowed`] bound with that trait's message;
+/// every other value returns `()`. Components render with `{+ child +}`, never
+/// pre-rendered into raw output.
 #[doc(hidden)]
-pub struct RawGuard<'a, T: ?Sized, L = ()>(pub &'a T, pub core::marker::PhantomData<L>);
+pub struct RawGuard<'a, T: ?Sized>(pub &'a T);
 
-/// Appears in the compiler error when `{+= =+}` is used with a Hemplate type.
-#[doc(hidden)]
-pub struct RawInterpolationNotAllowedForHemplateTypes<L = ()>(core::marker::PhantomData<L>);
+/// What the raw-output guard yields for a Hemplate component; it never
+/// satisfies [`RawOutputAllowed`], so `{+= component =+}` does not compile.
+pub struct RawComponent;
 
-impl<T: Hemplate + ?Sized, L> RawGuard<'_, T, L> {
+impl<T: Hemplate + ?Sized> RawGuard<'_, T> {
     #[doc(hidden)]
-    pub fn check(&self) -> RawInterpolationNotAllowedForHemplateTypes<L> {
-        RawInterpolationNotAllowedForHemplateTypes(core::marker::PhantomData)
+    pub fn check(&self) -> RawComponent {
+        RawComponent
     }
 }
 
@@ -128,10 +125,21 @@ pub trait RawGuardFallback {
     fn check(&self);
 }
 
-impl<T: ?Sized, L> RawGuardFallback for RawGuard<'_, T, L> {
+impl<T: ?Sized> RawGuardFallback for RawGuard<'_, T> {
     #[inline(always)]
     fn check(&self) {}
 }
+
+/// Satisfied only by what the raw-output guard returns for non-components.
+#[diagnostic::on_unimplemented(
+    message = "a Hemplate component cannot be inserted as raw output `{{+= .. =+}}`",
+    label = "a component renders itself; raw output would insert it as unchecked markup",
+    note = "compose it with escaped interpolation: `{{+ child +}}`"
+)]
+pub trait RawOutputAllowed {}
+
+#[diagnostic::do_not_recommend]
+impl RawOutputAllowed for () {}
 
 /// Called by codegen for `{+= expr =+}`: insert trusted markup unescaped.
 ///
