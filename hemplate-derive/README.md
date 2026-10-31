@@ -7,7 +7,7 @@ re-exports the derive macro and the `Hemplate` trait. Requires Rust 1.91 or newe
 
 ```toml
 [dependencies]
-hemplate = "0.4.0"
+hemplate = "0.5.0"
 ```
 
 When migrating from `hemplate-derive` 0.3 to 0.4, use the 0.4 facade and the

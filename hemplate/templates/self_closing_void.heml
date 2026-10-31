@@ -1,0 +1,1 @@
+<p>one<br/>two<br />three</p><input name="q" +value="self.value" /><img src="/a.png" alt="" /><video><source src="/v.mp4" type="video/mp4"/>fallback</video><hr/><svg><image href="/i.png"/><path d="M0 0"/></svg><p>after</p>

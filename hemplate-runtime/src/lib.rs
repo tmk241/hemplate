@@ -31,14 +31,14 @@ pub mod render;
 
 pub use context::{
     AnimationContext, AnimationValue, Context, Descriptor, DocumentContext, DocumentValue,
-    NavigationContext, NavigationValue, ResourceContext, ResourceValue, ScriptContext, ScriptValue,
-    Srcset, SrcsetContext, SrcsetValue, StyleContext, StyleValue, Trusted, TrustedAnimation,
-    TrustedDocument, TrustedNavigation, TrustedResource, TrustedScript, TrustedSrcset,
-    TrustedStyle, TrustedUrl, Url, UrlContext, UrlError, UrlValue,
+    HtmlContext, HtmlValue, NavigationContext, NavigationValue, ResourceContext, ResourceValue,
+    ScriptContext, ScriptValue, Srcset, SrcsetContext, SrcsetValue, StyleContext, StyleValue,
+    Trusted, TrustedAnimation, TrustedDocument, TrustedHtml, TrustedNavigation, TrustedResource,
+    TrustedScript, TrustedSrcset, TrustedStyle, TrustedUrl, Url, UrlContext, UrlError, UrlValue,
 };
 pub use error::RenderError;
 pub use escape::HtmlEscape;
-pub use hidden::{HiddenAttribute, HiddenValue};
+pub use hidden::{BooleanAttribute, HiddenAttribute, HiddenValue};
 
 /// Trait for types that can render themselves as an HTML string.
 ///

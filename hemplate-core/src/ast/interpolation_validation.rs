@@ -6,7 +6,7 @@ use crate::error::ParseError;
 /// must not mistake recovered interpolation for literal text or silently drop it.
 pub(super) fn validate_interpolations(root: Node<'_>, source: &str) -> Result<(), ParseError> {
     let mut accepted = Vec::new();
-    collect_accepted_ranges(root, &mut accepted);
+    collect_accepted_ranges(root, source, &mut accepted);
     let mut ranges = accepted.iter().peekable();
     for (offset, _) in source.match_indices("{+") {
         while ranges.peek().is_some_and(|range| range.end <= offset) {
@@ -59,7 +59,23 @@ fn validate_dynamic_attributes(node: Node<'_>, in_error: bool) -> Result<(), Par
     Ok(())
 }
 
-fn collect_accepted_ranges(node: Node<'_>, ranges: &mut Vec<std::ops::Range<usize>>) {
+fn collect_accepted_ranges(node: Node<'_>, source: &str, ranges: &mut Vec<std::ops::Range<usize>>) {
+    // The scanner marks HTML raw-text/RCDATA content. A foreign element with
+    // the same name is ordinary markup; only RCDATA permits interpolation.
+    let raw_text_tag = node
+        .parent()
+        .filter(|parent| parent.child_by_field_name("raw_content") == Some(node))
+        .and_then(|parent| parent.named_child(0))
+        .and_then(|start| start.named_child(0))
+        .map(|name| &source[name.byte_range()]);
+    if raw_text_tag.is_some_and(|tag| {
+        ["xmp", "iframe", "noembed", "noframes", "plaintext"]
+            .iter()
+            .any(|raw| tag.eq_ignore_ascii_case(raw))
+    }) {
+        ranges.push(node.byte_range());
+        return;
+    }
     match node.kind() {
         // These are literal contexts, or expressions handled independently by
         // attribute codegen. In particular, attribute interpolation historically
@@ -76,6 +92,6 @@ fn collect_accepted_ranges(node: Node<'_>, ranges: &mut Vec<std::ops::Range<usiz
         _ => {}
     }
     for child in node.children(&mut node.walk()) {
-        collect_accepted_ranges(child, ranges);
+        collect_accepted_ranges(child, source, ranges);
     }
 }

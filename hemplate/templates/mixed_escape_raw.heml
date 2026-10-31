@@ -1,1 +1,1 @@
-<div>{+ self.x +} {+= self.x.clone() =+}</div>
+<div>{+ self.x +} {+= hemplate::TrustedHtml::new_unchecked(self.x.clone()) =+}</div>

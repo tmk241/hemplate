@@ -81,6 +81,20 @@ pub enum HemplateNode<S: AsRef<str>> {
 
 impl<S: AsRef<str>> Extractable<S> for RangeNode<S, HemplateNode<S>> {
     fn extract(node: &Node, source: Arc<S>) -> Result<Option<Self>, ExtractionError> {
+        // A document may omit its html/head/body opening tags while writing
+        // their end tags. The grammar permits these only at document level.
+        if node.kind() == "end_tag" {
+            let segment = RangeNode::new(
+                Arc::clone(&source),
+                super::TextSegment::TextChunk(super::TextChunk),
+                node.range(),
+            );
+            return Ok(Some(RangeNode::new(
+                source,
+                HemplateNode::Text(Text(vec![segment])),
+                node.range(),
+            )));
+        }
         // Try to extract as Entity
         if let Some(entity) = RangeNode::<S, Entity>::extract(node, Arc::clone(&source))? {
             return Ok(Some(RangeNode::new(

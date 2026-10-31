@@ -11,7 +11,7 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use hemplate_core::ast::{Attribute, Attributes, RangeNode};
+use hemplate_core::ast::Attribute;
 
 use crate::codegen::{strip_attr_eq, strip_quotes};
 
@@ -73,34 +73,33 @@ pub(crate) struct ElementFacts {
 }
 
 impl ElementFacts {
-    pub(crate) fn new(tag: &str, attrs: Option<&RangeNode<String, Attributes<String>>>) -> Self {
-        let mut facts = Self {
+    pub(crate) fn new(tag: &str) -> Self {
+        Self {
             tag: tag.to_ascii_lowercase(),
             resource_link: false,
             http_equiv: false,
-        };
-        let Some(attrs) = attrs else { return facts };
-        for attr in &attrs.hemplate().0 {
-            match attr.hemplate() {
-                Attribute::RegularAttribute(attribute) => {
-                    let name = strip_attr_eq(attribute.0.content()).to_ascii_lowercase();
-                    facts.note(
-                        &name,
-                        attribute
-                            .1
-                            .as_ref()
-                            .map(|value| strip_quotes(value.content())),
-                    );
-                }
-                Attribute::DynamicAttribute(attribute) => {
-                    let name = strip_attr_eq(attribute.0.content()).to_ascii_lowercase();
-                    // A computed value is unknown: treat `rel` as dangerous.
-                    facts.note(&name, Some("{+"));
-                }
-                Attribute::TemplateDirective(_) => {}
-            }
         }
-        facts
+    }
+
+    pub(crate) fn note_attribute(&mut self, attr: &Attribute<String>) {
+        match attr {
+            Attribute::RegularAttribute(attribute) => {
+                let name = strip_attr_eq(attribute.0.content()).to_ascii_lowercase();
+                self.note(
+                    &name,
+                    attribute
+                        .1
+                        .as_ref()
+                        .map(|value| strip_quotes(value.content())),
+                );
+            }
+            Attribute::DynamicAttribute(attribute) => {
+                let name = strip_attr_eq(attribute.0.content()).to_ascii_lowercase();
+                // A computed value is unknown: treat `rel` as dangerous.
+                self.note(&name, Some("{+"));
+            }
+            Attribute::TemplateDirective(_) => {}
+        }
     }
 
     fn note(&mut self, name: &str, value: Option<&str>) {

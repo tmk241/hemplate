@@ -1,0 +1,22 @@
+error[E0277]: `String` is not a `bool`, so it cannot decide a Boolean attribute
+ --> tests/ui/reject_boolean_string.rs:4:10
+  |
+4 | #[derive(Hemplate)]
+  |          ^^^^^^^^ a Boolean attribute is present for `true` and omitted for `false` or `None`
+  |
+  = help: the trait `BooleanAttribute` is not implemented for `String`
+  = note: a string such as `"false"` is not false; convert the value to `bool` first
+help: the following other types implement trait `BooleanAttribute`
+ --> $WORKSPACE/hemplate-runtime/src/hidden.rs
+  |
+  | impl BooleanAttribute for bool {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `bool`
+...
+  | impl<T: BooleanAttribute + ?Sized> BooleanAttribute for &T {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&T`
+note: required by a bound in `__hemplate_bool_attr_disabled_at_ui_boolean_string_heml_line_1_col_18`
+ --> tests/ui/reject_boolean_string.rs:4:10
+  |
+4 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_bool_attr_disabled_at_ui_boolean_string_heml_line_1_col_18`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)

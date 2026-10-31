@@ -63,6 +63,8 @@ contexts! {
     ResourceContext => "resource",
     /// SVG animation value context marker.
     AnimationContext => "animation",
+    /// Raw HTML (`{+= =+}`) context marker.
+    HtmlContext => "html",
 }
 
 /// A value that may be the whole value of a URL attribute.
@@ -91,7 +93,7 @@ pub trait SrcsetValue: fmt::Display {}
     message = "`{Self}` cannot be interpolated into an event-handler attribute (`on*`)",
     label = "this value would be run as JavaScript",
     note = "HTML escaping does not make a value safe as code: the browser decodes the attribute before running it",
-    note = "pass data in a `data-*` attribute and read it from a script, or use a Hemx handle",
+    note = "pass data in a `data-*` attribute and read it from a script",
     note = "code you wrote yourself can be vouched for with `hemplate::TrustedScript::new_unchecked(..)`"
 )]
 pub trait ScriptValue: fmt::Display {}
@@ -139,6 +141,21 @@ pub trait ResourceValue: fmt::Display {}
 )]
 pub trait AnimationValue: fmt::Display {}
 
+/// Markup that raw interpolation `{+= value =+}` may insert unescaped.
+///
+/// A `String` or `&str` does not qualify: whatever it holds would become markup,
+/// including a `<script>` from user input. Render components with `{+ child +}`,
+/// and mark HTML that is known to be safe with [`TrustedHtml`], or implement
+/// this trait for a type that can only hold safe markup (such as a sanitizer's
+/// output type).
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` is not trusted HTML, so raw interpolation `{{+= .. =+}}` cannot insert it",
+    label = "raw output is inserted unescaped; a string could hold a `<script>` from user input",
+    note = "for text use escaped interpolation `{{+ .. +}}`, and for a child template `{{+ child +}}`",
+    note = "for markup someone vouches for, use `hemplate::TrustedHtml::new_unchecked(..)` or a type implementing `hemplate::HtmlValue`"
+)]
+pub trait HtmlValue: fmt::Display {}
+
 macro_rules! forward_refs {
     ($($trait:ident),* $(,)?) => {$(
         #[diagnostic::do_not_recommend]
@@ -155,6 +172,7 @@ forward_refs!(
     NavigationValue,
     ResourceValue,
     AnimationValue,
+    HtmlValue,
 );
 
 /// A value someone vouches for in context `C`, without any check.
@@ -213,6 +231,8 @@ pub type TrustedNavigation = Trusted<NavigationContext>;
 pub type TrustedResource = Trusted<ResourceContext>;
 /// An SVG animation value vouched for without a check.
 pub type TrustedAnimation = Trusted<AnimationContext>;
+/// HTML markup vouched for without a check, for raw interpolation `{+= =+}`.
+pub type TrustedHtml = Trusted<HtmlContext>;
 
 #[diagnostic::do_not_recommend]
 impl UrlValue for Trusted<UrlContext> {}
@@ -230,6 +250,8 @@ impl NavigationValue for Trusted<NavigationContext> {}
 impl ResourceValue for Trusted<ResourceContext> {}
 #[diagnostic::do_not_recommend]
 impl AnimationValue for Trusted<AnimationContext> {}
+#[diagnostic::do_not_recommend]
+impl HtmlValue for Trusted<HtmlContext> {}
 
 /// Why a value is not accepted as a [`Url`] or [`Srcset`] part.
 #[derive(Clone, Debug, PartialEq, Eq)]

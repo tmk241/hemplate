@@ -99,6 +99,8 @@ pub struct SurfaceAttribute {
     pub value: Option<String>,
     /// Attribute syntax family.
     pub origin: AttributeOrigin,
+    /// Byte range of the whole attribute in the template source.
+    pub span: std::ops::Range<usize>,
 }
 
 /// Surface node shape.
@@ -127,6 +129,8 @@ pub struct SurfaceNode {
     pub attrs: Vec<SurfaceAttribute>,
     /// Lexical scope containing this node.
     pub scope: ScopeId,
+    /// Byte offset just after a regular element's start tag, where its content begins.
+    pub content_start: Option<usize>,
 }
 
 /// Named form control visible in a `<form>`.

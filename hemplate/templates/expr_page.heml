@@ -1,0 +1,4 @@
+<main><header>{+ ExprHeader::new(
+  first(),
+  second(),
+) +}</header><b>{+ Label { text: "a +} b" } +}</b><i>{+ if self.on { format!("{}{}", 'y', '}') } else { String::new() } +}</i><p +title='format!("{} +}} {}", self.count, if self.on { "y" } else { "n" })' +data-total="[self.count, self.count].iter().sum::<u32>()"></p></main>

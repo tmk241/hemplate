@@ -175,25 +175,14 @@ impl<S: AsRef<str> + Clone> Visitor<S> for TextExtractor {
             self.visit_hemplate_node(child)?;
         }
 
-        // Extract end tag (we need to compute this since it's not directly accessible)
-        let tag_name = node.hemplate().0.hemplate().0.content();
-        self.append(&format!("</{}>", tag_name))
+        if let Some(end) = &node.hemplate().2 {
+            self.append(end.content())?;
+        }
+        Ok(())
     }
 
     fn visit_start_tag(&mut self, node: &RangeNode<S, StartTag<S>>) -> Result<(), Self::Error> {
-        // Open the tag
-        self.append("<")?;
-
-        // Visit tag name
-        self.visit_tag_name(&node.hemplate().0)?;
-
-        // Visit attributes if present
-        if let Some(attrs) = &node.hemplate().1 {
-            self.visit_attributes(attrs)?;
-        }
-
-        // Close the tag
-        self.append(">")
+        self.append(node.content())
     }
 
     fn visit_tag_name(&mut self, node: &RangeNode<S, TagName>) -> Result<(), Self::Error> {
@@ -293,8 +282,7 @@ impl<S: AsRef<str> + Clone> Visitor<S> for TextExtractor {
             self.visit_raw_text(raw_text)?;
         }
 
-        // Add end tag
-        self.append("</script>")
+        self.append(node.hemplate().2.content())
     }
 
     fn visit_style_element(
@@ -309,8 +297,7 @@ impl<S: AsRef<str> + Clone> Visitor<S> for TextExtractor {
             self.visit_raw_text(raw_text)?;
         }
 
-        // Add end tag
-        self.append("</style>")
+        self.append(node.hemplate().2.content())
     }
 
     fn visit_raw_text(&mut self, node: &RangeNode<S, RawText>) -> Result<(), Self::Error> {
@@ -328,19 +315,7 @@ impl<S: AsRef<str> + Clone> Visitor<S> for TextExtractor {
         &mut self,
         node: &RangeNode<S, SelfClosingElement<S>>,
     ) -> Result<(), Self::Error> {
-        // Open the tag
-        self.append("<")?;
-
-        // Visit tag name
-        self.visit_tag_name(&node.hemplate().0)?;
-
-        // Visit attributes if present
-        if let Some(attrs) = &node.hemplate().1 {
-            self.visit_attributes(attrs)?;
-        }
-
-        // Close the self-closing tag
-        self.append("/>")
+        self.append(node.content())
     }
 }
 

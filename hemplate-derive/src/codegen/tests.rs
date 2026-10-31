@@ -7,7 +7,7 @@ fn codegen_from(heml: &str) -> TokenStream {
     let doc = build_ast(source)
         .unwrap_or_else(|error| panic!("parse failed for {heml}: {error}"))
         .expect("empty AST");
-    generate_body(&doc, "inline.heml")
+    generate_body(&doc, "inline.heml", None)
 }
 
 fn contains_compile_error(ts: &TokenStream) -> bool {
@@ -272,11 +272,11 @@ fn elided_valid_attribute_expression_is_not_emitted_or_evaluated() {
     // Blocks and closures are valid attribute Rust, beyond the text grammar.
     // Exact generated output also proves the ignored expression cannot run.
     let output = codegen_from(
-        r#"<template title='{+ (|| { panic!("must not run"); 42 })() +}'>ok</template>"#,
+        r#"<template h-if="true" title='{+ (|| { panic!("must not run"); 42 })() +}'>ok</template>"#,
     );
     assert_eq!(
         output.to_string(),
-        quote! { buf.write_str("ok")?; }.to_string()
+        quote! { if true { buf.write_str("ok")?; } }.to_string()
     );
 }
 
@@ -437,6 +437,38 @@ fn context_rules_apply_to_elided_attributes_too() {
     );
 }
 
+/// rustc prints a type's generic arguments and a bound's function name in
+/// trait errors, so naming the position there puts it in the message. The
+/// end-to-end message for raw output is pinned in `tests/ui/reject_raw_string`;
+/// text output is asserted here because its full rustc message quotes
+/// `core::fmt::Display` differently with and without the `rust-src` component.
+#[test]
+fn interpolation_contract_errors_name_the_template_position() {
+    let output = codegen_from("<ul>\n  <li>{+ self.a +}{+= self.b =+}</li>\n</ul>").to_string();
+    for site in [
+        "Escaped :: < _ , __hemplate_text_at_inline_heml_line_2_col_10 >",
+        "fn __hemplate_raw_html_at_inline_heml_line_2_col_23 < T : :: hemplate :: __runtime :: HtmlValue",
+    ] {
+        assert!(output.contains(site), "missing {site} in {output}");
+    }
+}
+
+#[test]
+fn attribute_contract_errors_name_the_template_position() {
+    let output = codegen_from(
+        r#"<input title="a {+ self.t +}" +data-x="self.x" +disabled="self.d" +hidden="self.h">"#,
+    )
+    .to_string();
+    for site in [
+        "fn __hemplate_text_attr_title_at_inline_heml_line_1_col_",
+        "fn __hemplate_text_attr_data_x_at_inline_heml_line_1_col_",
+        "fn __hemplate_bool_attr_disabled_at_inline_heml_line_1_col_",
+        "fn __hemplate_hidden_attr_at_inline_heml_line_1_col_",
+    ] {
+        assert!(output.contains(site), "missing {site} in {output}");
+    }
+}
+
 #[test]
 fn typed_contexts_require_their_trait_and_text_contexts_do_not() {
     for (source, bound) in [
@@ -558,7 +590,7 @@ fn attributes_that_are_never_rendered_are_not_context_checked() {
     // A <template> wrapper renders no attributes and its expressions are never
     // evaluated or type-checked, so there is no value to protect. Fixed text that
     // forms a scheme is still a syntax-level error (see the elided-attribute test).
-    let source = r#"<template onclick="{+ self.s +}" href="{+ self.s +}" style="{+ self.s +}">ok</template>"#;
+    let source = r#"<template h-if="true" onclick="{+ self.s +}" href="{+ self.s +}" style="{+ self.s +}">ok</template>"#;
     assert_no_compile_error(source);
     let output = codegen_from(source).to_string();
     assert!(
@@ -590,4 +622,276 @@ fn a_typed_value_is_whole_or_it_is_refused() {
     }
     assert_no_compile_error(r#"<a href="{+ self.trusted +}">x</a>"#);
     assert_no_compile_error(r#"<img srcset="{+ self.set +}">"#);
+}
+
+fn transformed(heml: &str, edits: Vec<hemplate_core::transform::Edit>) -> TokenStream {
+    let source = Arc::new(heml.to_string());
+    let doc = build_ast(source).unwrap().expect("empty AST");
+    let transform = crate::template_source::TemplateTransform::for_test(heml, edits);
+    generate_body(&doc, "inline.heml", Some(&transform))
+}
+
+fn edit(range: std::ops::Range<usize>, text: &str) -> hemplate_core::transform::Edit {
+    hemplate_core::transform::Edit {
+        range,
+        text: text.into(),
+    }
+}
+
+fn span_of(heml: &str, needle: &str) -> std::ops::Range<usize> {
+    let start = heml.find(needle).unwrap();
+    start..start + needle.len()
+}
+
+#[test]
+fn transform_replaces_static_attributes_and_inserts_after_start_tags() {
+    let heml = r#"<form class="a" data-x="b"><p>{+ self.x +}</p></form>"#;
+    let source = Arc::new(heml.to_string());
+    let doc = build_ast(source).unwrap().unwrap();
+    // The surface reports the exact ranges an integration addresses.
+    let surface = hemplate_core::surface::extract_surface(&doc);
+    let form = &surface.nodes[0];
+    let class = form.attrs.iter().find(|attr| attr.name == "class").unwrap();
+    let content = form.content_start.unwrap();
+    assert_eq!(&heml[content - 1..content], ">");
+    let output = transformed(
+        heml,
+        vec![
+            edit(class.span.clone(), r#"class="z""#),
+            edit(content..content, r#"<input name="k">"#),
+        ],
+    )
+    .to_string();
+    assert!(!output.contains("compile_error"), "{output}");
+    assert!(output.contains(r#"" class=\"z\"""#), "{output}");
+    assert!(!output.contains(r#"class=\"a\""#), "{output}");
+    assert!(output.contains(r#"<input name=\"k\">"#), "{output}");
+    assert!(output.contains(r#"data-x=\"b\""#), "{output}");
+}
+
+#[test]
+fn transform_keeps_original_diagnostic_positions() {
+    // An edit before the error that lengthens the line must not move it.
+    let heml = "<p class=\"a\"></p>\n<p class=\"b\" +onclick=\"self.x\"></p>";
+    let plain = codegen_from(heml).to_string();
+    let edited = transformed(
+        heml,
+        vec![edit(
+            span_of(heml, "class=\"a\""),
+            "class=\"a much longer replacement\"",
+        )],
+    )
+    .to_string();
+    // The typed-context helper name carries the template position into rustc errors.
+    let position = "_at_inline_heml_line_2_col_23";
+    assert!(plain.contains(position), "{plain}");
+    assert!(edited.contains(position), "{edited}");
+}
+
+#[test]
+fn transform_edits_outside_static_markup_fail() {
+    let interpolated = r#"<p title="a{+ self.x +}"></p>"#;
+    let dynamic = r#"<p +title="self.x"></p>"#;
+    let template = r#"<template h-for="x in self.xs"><b></b></template>"#;
+    let insertion = template.find('>').unwrap() + 1;
+    for (heml, edit) in [
+        (
+            interpolated,
+            edit(span_of(interpolated, r#"title="a{+ self.x +}""#), "x"),
+        ),
+        (dynamic, edit(span_of(dynamic, r#"+title="self.x""#), "x")),
+        (template, edit(insertion..insertion, "<i></i>")),
+        ("<p>text</p>", edit(4..6, "x")),
+    ] {
+        let output = transformed(heml, vec![edit]).to_string();
+        assert!(
+            output.contains("edits something other than a static attribute"),
+            "{heml}: {output}"
+        );
+    }
+}
+
+#[test]
+fn templates_without_a_transform_generate_identical_code() {
+    for heml in [
+        r#"<form class="a" data-x="b"><p>{+ self.x +}</p></form>"#,
+        r#"<template h-for="x in self.xs" h-key="x.id"><li +title="x.name">{+ x +}</li></template>"#,
+        r#"<a href="/u/{+ self.id +}" hidden>{+= self.raw =+}</a>"#,
+    ] {
+        assert_eq!(
+            codegen_from(heml).to_string(),
+            transformed(heml, Vec::new()).to_string()
+        );
+    }
+}
+
+#[test]
+fn transformed_attributes_determine_security_context_at_original_positions() {
+    for value in [r#"+href="self.v""#, r#"href="{+ self.v +}""#] {
+        let heml = format!("<p></p>\n<link {value} rel=\"alternate\">");
+        let output = transformed(
+            &heml,
+            vec![edit(
+                span_of(&heml, "rel=\"alternate\""),
+                "rel=\"stylesheet\"",
+            )],
+        )
+        .to_string();
+        assert!(output.contains("ResourceValue"), "{output}");
+        assert!(output.contains("_at_inline_heml_line_2_col_"), "{output}");
+    }
+    for value in [r#"+content="self.v""#, r#"content="{+ self.v +}""#] {
+        let heml = format!("<p></p>\n<meta {value} name=\"description\">");
+        let output = transformed(
+            &heml,
+            vec![edit(
+                span_of(&heml, "name=\"description\""),
+                "http-equiv=\"refresh\"",
+            )],
+        )
+        .to_string();
+        assert!(output.contains("NavigationValue"), "{output}");
+    }
+}
+
+#[test]
+fn unknown_h_attributes_do_not_compete_with_control_flow() {
+    for unknown in ["h-custom", "h-let"] {
+        let output = codegen_from(&format!(
+            "<div {unknown}=\"value\" h-if=\"false\">hidden</div>"
+        ))
+        .to_string();
+        assert!(!output.contains("compile_error"), "{output}");
+        assert!(output.contains("if false"), "{output}");
+        assert!(output.contains(unknown), "{output}");
+    }
+}
+
+#[test]
+fn h_key_before_if_does_not_hide_the_condition() {
+    let output = codegen_from(r#"<div h-key="self.key" h-if="false">hidden</div>"#).to_string();
+    assert!(output.contains("if false"), "{output}");
+}
+
+#[test]
+fn all_directive_errors_have_original_source_locations() {
+    for (heml, message) in [
+        ("<div h-if=\"true\"></div>\n<div h-else h-for=\"x in xs\"></div>", "multiple directives"),
+        ("<div h-if=\"true\"></div>\n<div h-else-if=\"false\" h-for=\"x in xs\"></div>", "multiple directives"),
+        ("<template h-match=\"x\">\n<div h-case=\"_\" h-if=\"true\"></div></template>", "multiple directives"),
+        ("<template h-match=\"x\">\n<div h-for=\"x in xs\" h-case=\"_\"></div></template>", "multiple directives"),
+        ("<template h-match=\"x\">\n<div><b h-if=\"true\" h-for=\"x in xs\"></b></div><b h-case=\"_\"></b></template>", "multiple directives"),
+        ("<p></p>\n<script h-else>x</script>", "without a preceding"),
+        ("<p></p>\n<style h-case=\"_\">x</style>", "must be a direct child"),
+        ("<p></p>\n<div h-if=\"x +\"></div>", "invalid h-if"),
+        ("<p></p>\n<div h-for=\"x\"></div>", "h-for"),
+        ("<p></p>\n<div h-match=\"x +\"></div>", "h-match"),
+        ("<template h-match=\"x\">\n<div h-case=\"(\"></div></template>", "h-case"),
+    ] {
+        let output = codegen_from(heml).to_string();
+        assert!(output.contains("compile_error") && output.contains(message), "{heml}: {output}");
+        assert!(output.contains("inline.heml:2:"), "{heml}: {output}");
+    }
+}
+
+#[test]
+fn raw_text_elements_honor_control_flow() {
+    for tag in ["script", "style"] {
+        let output = codegen_from(&format!("<{tag} h-if=\"false\">raw</{tag}>")).to_string();
+        assert!(output.contains("if false"), "{output}");
+    }
+}
+
+#[test]
+fn for_separator_is_a_rust_token_not_literal_text() {
+    for expr in ["x\tin\titems", "x/* gap */in/* gap */items"] {
+        let heml = format!(r#"<div h-for="{expr}">{{+ x +}}</div>"#);
+        assert_no_compile_error(&heml);
+    }
+    assert_no_compile_error(r#"<div h-for='"a in b" in items'>x</div>"#);
+}
+
+#[test]
+fn transformed_context_uses_replacement_names_multiple_attributes_and_deletions() {
+    for (heml, original, replacement, bound) in [
+        (
+            r#"<link title="x" +href="self.v">"#,
+            r#"title="x""#,
+            r#"title="x" REL="stylesheet""#,
+            "ResourceValue",
+        ),
+        (
+            r#"<meta name="x" +content="self.v">"#,
+            r#"name="x""#,
+            r#"HTTP-EQUIV="refresh""#,
+            "NavigationValue",
+        ),
+        (
+            r#"<link rel="stylesheet" +href="self.v">"#,
+            r#"rel="stylesheet""#,
+            "",
+            "UrlValue",
+        ),
+    ] {
+        let output =
+            transformed(heml, vec![edit(span_of(heml, original), replacement)]).to_string();
+        assert!(output.contains(bound), "{output}");
+        assert!(!output.contains("compile_error"), "{output}");
+    }
+}
+
+#[test]
+fn transform_replacements_cannot_smuggle_dynamic_syntax_or_markup() {
+    let heml = r#"<p class="x"></p>"#;
+    for replacement in [
+        r#"title="{+ self.v +}""#,
+        r#"+title="self.v""#,
+        r#"h-if="false""#,
+        r#"class="x"><script>run()</script><p"#,
+    ] {
+        let output =
+            transformed(heml, vec![edit(span_of(heml, r#"class="x""#), replacement)]).to_string();
+        assert!(
+            output.contains("transform replacement must contain only static attributes"),
+            "{output}"
+        );
+        assert!(output.contains("inline.heml:1:4"), "{output}");
+    }
+}
+
+#[test]
+fn noscript_descendants_keep_attribute_security_checks_and_transforms() {
+    let output =
+        codegen_from(r#"<noscript><button +onclick="self.handler">run</button></noscript>"#)
+            .to_string();
+    assert!(output.contains("ScriptValue"), "{output}");
+    assert_compile_error(
+        r#"<noscript><a href="sms:{+ self.value +}">link</a></noscript>"#,
+        "starts with scheme `sms:`",
+    );
+
+    let heml = r#"<noscript><form class="before"></form></noscript>"#;
+    let output = transformed(
+        heml,
+        vec![edit(span_of(heml, r#"class="before""#), r#"class="after""#)],
+    )
+    .to_string();
+    assert!(!output.contains("compile_error"), "{output}");
+    assert!(output.contains(r#"class=\"after\""#), "{output}");
+    assert!(!output.contains("before"), "{output}");
+}
+
+#[test]
+fn noscript_does_not_hide_malformed_template_bindings() {
+    for source in [
+        "<noscript>{+ self.value</noscript>",
+        "<noscript><b>{+ self.value</b></noscript>",
+        "<noscript><b +title=\"self.value>text</b></noscript>",
+    ] {
+        let error = build_ast(Arc::new(source.to_owned())).unwrap_err();
+        assert!(
+            error.to_string().contains("interpolation at line 1"),
+            "{source}: {error}"
+        );
+    }
 }

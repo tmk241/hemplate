@@ -1,0 +1,1 @@
+<noscript><b h-if="self.show">{+ self.value +}</b><a +title="self.value">link</a><span h-for="item in self.items">{+ item +}</span></noscript>

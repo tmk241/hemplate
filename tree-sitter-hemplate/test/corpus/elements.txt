@@ -58,3 +58,98 @@ Style body owns raw text including braces and less-than signs
       (start_tag (tag_name))
       (raw_text)
       (end_tag (tag_name)))))
+
+==================
+Raw-text and RCDATA elements can be self-closing
+==================
+<textarea/><title/><iframe/><xmp/><noembed/><noframes/><plaintext/><p>after</p>
+---
+
+(document
+  (element
+    (self_closing_element
+      (tag_name)))
+  (element
+    (self_closing_element
+      (tag_name)))
+  (element
+    (self_closing_element
+      (tag_name)))
+  (element
+    (self_closing_element
+      (tag_name)))
+  (element
+    (self_closing_element
+      (tag_name)))
+  (element
+    (self_closing_element
+      (tag_name)))
+  (element
+    (self_closing_element
+      (tag_name)))
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (text
+        (text_chunk))
+      (end_tag
+        (tag_name)))))
+
+==================
+Non-self-closing raw-text elements still own markup-like text
+==================
+<iframe><b>{+ literal +}</b></iframe><title><b>literal</b>{+ value +}</title>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (text
+        (text_chunk))
+      (end_tag
+        (tag_name))))
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (text
+        (text_chunk)
+        (interpolation
+          (interpolation_expression)))
+      (end_tag
+        (tag_name)))))
+
+==================
+Noscript contents are ordinary template markup
+==================
+<noscript><b h-if="self.show">{+ self.value +}</b></noscript>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name)
+            (attributes
+              (attribute
+                (template_directive
+                  (template_directive_name)
+                  (attribute_value
+                    (quoted_value
+                      (double_quoted_value
+                        (text
+                          (text_chunk)))))))))
+          (text
+            (interpolation
+              (interpolation_expression)))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))

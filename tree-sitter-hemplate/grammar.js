@@ -1,17 +1,3 @@
-const PREC = {
-  INTERPOLATION: 40,
-  UNARY: 12,
-  CALL: 11,
-  MEMBER: 10,
-  // Binary operators
-  OR: 1,
-  AND: 2,
-  EQUALITY: 3,
-  RELATIONAL: 4,
-  ADDITIVE: 5,
-  MULTIPLICATIVE: 6,
-};
-
 /**
  * @file HTML extension grammar for tree-sitter with template extensions
  *
@@ -20,8 +6,6 @@ const PREC = {
 
 /// <reference types="tree-sitter-cli/dsl" />
 // @ts-check
-//
-// Helper: make an operator token that includes any surrounding spaces in one leaf
 
 module.exports = grammar({
   name: "hemplate",
@@ -36,10 +20,16 @@ module.exports = grammar({
     $._implicit_end_tag,
     $.raw_text,
     $.comment,
+    $._escaped_expression,
+    $._raw_expression,
+    $._interpolation_start,
+    $._raw_interpolation_start,
+    $._raw_text_chunk,
+    $._raw_start_tag_name,
   ],
 
   rules: {
-    document: ($) => seq(optional($.doctype), repeat($._node)),
+    document: ($) => seq(optional($.doctype), repeat(choice($._node, $.end_tag))),
 
     doctype: ($) => seq("<!", alias($._doctype, "doctype"), /[^>]+/, ">"),
 
@@ -75,7 +65,6 @@ module.exports = grammar({
       ),
 
     end_tag: ($) => seq("</", alias($._end_tag_name, $.tag_name), ">"),
-    //erroneous_end_tag: ($) => seq("</", $.erroneous_end_tag_name, ">"),
 
     script_element: ($) =>
       seq(
@@ -93,8 +82,19 @@ module.exports = grammar({
 
     _node: ($) => choice($.entity, $.comment, $.text, $.element),
 
+    raw_start_tag: ($) => seq("<", alias($._raw_start_tag_name, $.tag_name), optional($.attributes), ">"),
+
+    raw_content: ($) => repeat1(choice(alias($._raw_text_chunk, $.text_chunk), $.comment, $.interpolation, $.raw_interpolation)),
+
+    // Only HTML-namespace raw-text/RCDATA elements reach this rule. Consumers
+    // use the field instead of guessing the namespace from a tag's spelling.
+    raw_element: ($) => seq(alias($.raw_start_tag, $.start_tag), optional(field("raw_content", alias($.raw_content, $.text))), choice($.end_tag, $._implicit_end_tag)),
+
     regular_element: ($) =>
-      seq($.start_tag, repeat($._node), choice($.end_tag)),
+      choice(
+        seq($.start_tag, repeat1($._node), choice($.end_tag, $._implicit_end_tag)),
+        seq($.start_tag, $.end_tag),
+      ),
 
     void_element: ($) =>
       seq($.start_tag, $._implicit_end_tag),
@@ -102,7 +102,7 @@ module.exports = grammar({
     self_closing_element: ($) =>
       seq(
         "<",
-        alias($._start_tag_name, $.tag_name),
+        alias(choice($._start_tag_name, $._raw_start_tag_name), $.tag_name),
         optional($.attributes),
         "/>",
       ),
@@ -114,23 +114,21 @@ module.exports = grammar({
         $.self_closing_element,
         $.style_element,
         $.void_element,
+        alias($.raw_element, $.regular_element),
       ),
 
     // Keep ordinary attribute names permissive so custom HTML attributes pass through.
     attribute_name: () =>
       token(
-        prec(-1, /[:@#?*.\[(]*[a-zA-Z_$][a-zA-Z0-9_$.\-:|#\])]*/),
+        prec(-1, /[:@#?*.\[(]*[a-zA-Z0-9_$][a-zA-Z0-9_$.\-:|#\])]*/),
       ),
 
-    // Then use it in your attribute rule
     attribute: ($) =>
       choice(
         prec(30, $.template_directive),
         $.dynamic_attribute,
         $.regular_attribute,
       ),
-
-    flag_attribute: ($) => $.attribute_name,
 
     attributes: ($) =>
       prec.right(repeat1(choice($.ignored_whitespace_segment, $.attribute))),
@@ -184,8 +182,10 @@ module.exports = grammar({
     double_quoted_value: ($) => seq('"', optional($.text), '"'),
     single_quoted_value: ($) => seq("'", optional($.text), "'"),
 
-    double_quoted_expression: ($) => seq('"', $.expression, '"'),
-    single_quoted_expression: ($) => seq("'", $.expression, "'"),
+    double_quoted_expression: ($) =>
+      seq('"', alias($._double_quoted_expression_text, $.expression), '"'),
+    single_quoted_expression: ($) =>
+      seq("'", alias($._single_quoted_expression_text, $.expression), "'"),
 
     quoted_value: ($) => choice($.single_quoted_value, $.double_quoted_value),
 
@@ -194,12 +194,7 @@ module.exports = grammar({
 
     unquoted_value: () => /[^<>"'=`\s]+/,
 
-    //text: ($) => repeat1($.text_segment),
     text: ($) => prec.right(repeat1($._text_segment)),
-
-    //text_chunk: () => token(prec(-1, /[^\s{}<>"]+|["']|\{|\}|[{}<>]/)),
-    //text_chunk: () =>
-    //token(choice(/[^{}<>\t\r\n"']+/, /["']/, /\{/, /\}/, /[<>]/)),
 
     text_chunk: () =>
       prec.right(
@@ -217,183 +212,31 @@ module.exports = grammar({
     _text_segment: ($) =>
       choice($.raw_interpolation, $.interpolation, $.whitespace_segment, $.text_chunk),
 
+    // The scanner emits an opening delimiter only when a complete
+    // interpolation follows; otherwise `{` remains ordinary text.
     interpolation: ($) =>
       seq(
-        token.immediate(seq(token("{+"), optional(" "))),
+        alias($._interpolation_start, "{+"),
         $.interpolation_expression,
-        token.immediate(seq(optional(" "), token("+}"))),
+        token.immediate(/[ \t\r\n]*\+\}/),
       ),
 
     raw_interpolation: ($) =>
       seq(
-        token.immediate(seq(token("{+="), optional(" "))),
-        $.interpolation_expression,
-        token.immediate(seq(optional(" "), token("=+}"))),
+        alias($._raw_interpolation_start, "{+="),
+        alias($.raw_interpolation_expression, $.interpolation_expression),
+        token.immediate(/[ \t\r\n]*=\+\}/),
       ),
 
-    interpolation_expression: ($) => $.expression,
+    // An interpolation holds one opaque Rust expression. The external scanner
+    // ends it at the first closing delimiter outside string/char literals and
+    // balanced brackets; Rust's own parser checks the expression itself.
+    interpolation_expression: ($) => $._escaped_expression,
+    raw_interpolation_expression: ($) => $._raw_expression,
 
-    array_expression: ($) =>
-      seq(
-        "[",
-        optional(
-          seq(
-            field("element", $.expression),
-            repeat(seq(",", optional(" "), field("element", $.expression))),
-            optional(","),
-          ),
-        ),
-        "]",
-      ),
-
-    tuple_expression: ($) =>
-      seq(
-        "(",
-        field("item", $.expression),
-        ",",
-        repeat(seq(field("item", $.expression), optional(","), optional(" "))),
-        ")",
-      ),
-
-    expression: ($) =>
-      choice(
-        $.identifier,
-        $.literal,
-        $.array_expression,
-        $.tuple_expression,
-        $.member_expression,
-        $.call_expression,
-        $.binary_expression,
-        $.unary_expression,
-        $.parenthesized_expression,
-        $.subscript_expression,
-      ),
-
-    identifier: () => /[a-zA-Z_:][a-zA-Z0-9_:<>!]*/,
-
-    literal: ($) => choice($.number, $.string, $.boolean),
-
-    number: () =>
-      /\d+(\.\d+)?(u8|i8|u16|i16|u32|i32|u64|i64|u128|i128|isize|usize|f32|f64)?/,
-
-    string: () =>
-      prec.dynamic(
-        20,
-        choice(token(seq("'", /[^']*/, "'")), token(seq('"', /[^"]*/, '"'))),
-      ),
-
-    boolean: () => choice("true", "false"),
-
-    member_expression: ($) =>
-      prec.left(
-        PREC.MEMBER,
-        seq(
-          field(
-            "object",
-            choice(
-              $.identifier,
-              $.literal,
-              $.member_expression,
-              $.call_expression,
-              $.subscript_expression,
-            ),
-          ),
-          ".",
-          field("property", $.identifier),
-        ),
-      ),
-
-    call_expression: ($) =>
-      prec.left(
-        PREC.CALL,
-        seq(
-          field("callee", choice($.identifier, $.member_expression)),
-          "(",
-          optional(
-            seq(
-              field("arguments", $.expression),
-              repeat(seq(",", optional(" "), field("arguments", $.expression))),
-            ),
-          ),
-          ")",
-        ),
-      ),
-
-    binary_expression: ($) => {
-      const table = [
-        ["+", PREC.ADDITIVE],
-        ["-", PREC.ADDITIVE],
-        ["*", PREC.MULTIPLICATIVE],
-        ["/", PREC.MULTIPLICATIVE],
-        ["%", PREC.MULTIPLICATIVE],
-        ["==", PREC.EQUALITY],
-        ["!=", PREC.EQUALITY],
-        [">", PREC.RELATIONAL],
-        ["<", PREC.RELATIONAL],
-        [">=", PREC.RELATIONAL],
-        ["<=", PREC.RELATIONAL],
-        ["&&", PREC.AND],
-        ["||", PREC.OR],
-      ];
-
-      return choice(
-        ...table.map(([operator, precedence]) => {
-          return prec.left(
-            precedence,
-            seq(
-              field("left", $.expression),
-              token.immediate(seq(optional(" "), operator, optional(" "))),
-              field("right", $.expression),
-            ),
-          );
-        }),
-      );
-    },
-
-    unary_expression: ($) =>
-      prec.right(
-        PREC.UNARY,
-        seq(
-          field("operator", $.unary_operator),
-          field(
-            "argument",
-            choice(
-              $.identifier,
-              $.literal,
-              $.member_expression,
-              $.call_expression,
-              $.array_expression,
-              $.tuple_expression,
-              $.parenthesized_expression,
-            ),
-          ),
-        ),
-      ),
-
-    unary_operator: () => choice("!", "-", "&", "*"),
-
-    parenthesized_expression: ($) => seq("(", $.expression, ")"),
-
-    subscript_expression: ($) =>
-      prec.left(
-        PREC.MEMBER,
-        seq(
-          field(
-            "object",
-            choice($.identifier, $.member_expression, $.call_expression),
-          ),
-          "[",
-          field(
-            "index",
-            choice(
-              $.identifier,
-              $.literal,
-              $.member_expression,
-              $.call_expression,
-            ),
-          ),
-          "]",
-        ),
-      ),
+    // A dynamic attribute value may hold any Rust expression that does not
+    // contain its enclosing quote character.
+    _double_quoted_expression_text: () => /[^"]+/,
+    _single_quoted_expression_text: () => /[^']+/,
   },
 });

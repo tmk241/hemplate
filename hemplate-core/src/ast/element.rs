@@ -13,6 +13,8 @@ use crate::error::ExtractionError;
 pub struct SelfClosingElement<S: AsRef<str>>(
     pub RangeNode<S, TagName>,
     pub Option<RangeNode<S, Attributes<S>>>,
+    /// The complete opening syntax, including its self-closing delimiter.
+    pub RangeNode<S, RawText>,
 );
 
 impl<S: AsRef<str>> NodeKind for SelfClosingElement<S> {
@@ -49,8 +51,12 @@ impl<S: AsRef<str>> Extractable<S> for RangeNode<S, SelfClosingElement<S>> {
         }
 
         Ok(Some(RangeNode::new(
-            source,
-            SelfClosingElement(name, attributes),
+            Arc::clone(&source),
+            SelfClosingElement(
+                name,
+                attributes,
+                RangeNode::new(source, RawText, node.range()),
+            ),
             node.range(),
         )))
     }
@@ -61,6 +67,8 @@ impl<S: AsRef<str>> Extractable<S> for RangeNode<S, SelfClosingElement<S>> {
 pub struct RegularElement<S: AsRef<str>>(
     pub RangeNode<S, StartTag<S>>,
     pub Vec<RangeNode<S, HemplateNode<S>>>,
+    /// Only an end tag actually written in the source; implicit ends are None.
+    pub Option<RangeNode<S, EndTag<S>>>,
 );
 
 impl<S: AsRef<str>> NodeKind for RegularElement<S> {
@@ -90,18 +98,22 @@ impl<S: AsRef<str>> Extractable<S> for RangeNode<S, RegularElement<S>> {
         })?;
 
         let mut nodes: Vec<RangeNode<S, HemplateNode<S>>> = Vec::new();
+        let mut end_tag = None;
 
         for c in node.named_children(cursor) {
-            if let Some(n) = RangeNode::<S, HemplateNode<S>>::extract(&c, Arc::clone(&source))? {
-                nodes.push(n);
-            } else if RangeNode::<S, EndTag<S>>::extract(&c, Arc::clone(&source))?.is_some() {
+            if let Some(end) = RangeNode::<S, EndTag<S>>::extract(&c, Arc::clone(&source))? {
+                end_tag = Some(end);
                 break;
+            } else if let Some(n) =
+                RangeNode::<S, HemplateNode<S>>::extract(&c, Arc::clone(&source))?
+            {
+                nodes.push(n);
             }
         }
 
         Ok(Some(RangeNode::new(
             source,
-            RegularElement(start_tag, nodes),
+            RegularElement(start_tag, nodes, end_tag),
             node.range(),
         )))
     }
@@ -131,6 +143,8 @@ impl<S: AsRef<str>> Extractable<S> for RangeNode<S, RawText> {
 pub struct ScriptElement<S: AsRef<str>>(
     pub RangeNode<S, StartTag<S>>,
     pub Option<RangeNode<S, RawText>>,
+    /// The source end tag.
+    pub RangeNode<S, EndTag<S>>,
 );
 impl<S: AsRef<str>> NodeKind for ScriptElement<S> {
     fn node_kind() -> &'static str {
@@ -166,9 +180,10 @@ impl<S: AsRef<str>> Extractable<S> for RangeNode<S, ScriptElement<S>> {
             }
         }
 
+        let end_tag = extract_end_tag(node, Arc::clone(&source))?;
         Ok(Some(RangeNode::new(
             source,
-            ScriptElement(start_tag, raw_text),
+            ScriptElement(start_tag, raw_text, end_tag),
             node.range(),
         )))
     }
@@ -179,6 +194,8 @@ impl<S: AsRef<str>> Extractable<S> for RangeNode<S, ScriptElement<S>> {
 pub struct StyleElement<S: AsRef<str>>(
     pub RangeNode<S, StartTag<S>>,
     pub Option<RangeNode<S, RawText>>,
+    /// The source end tag.
+    pub RangeNode<S, EndTag<S>>,
 );
 
 impl<S: AsRef<str>> NodeKind for StyleElement<S> {
@@ -215,12 +232,28 @@ impl<S: AsRef<str>> Extractable<S> for RangeNode<S, StyleElement<S>> {
             }
         }
 
+        let end_tag = extract_end_tag(node, Arc::clone(&source))?;
         Ok(Some(RangeNode::new(
             source,
-            StyleElement(start_tag, raw_text),
+            StyleElement(start_tag, raw_text, end_tag),
             node.range(),
         )))
     }
+}
+
+fn extract_end_tag<S: AsRef<str>>(
+    node: &Node,
+    source: Arc<S>,
+) -> Result<RangeNode<S, EndTag<S>>, ExtractionError> {
+    for child in node.named_children(&mut node.walk()) {
+        if let Some(end) = RangeNode::<S, EndTag<S>>::extract(&child, Arc::clone(&source))? {
+            return Ok(end);
+        }
+    }
+    Err(ExtractionError {
+        node_kind: node.kind().into(),
+        message: "end tag not found".into(),
+    })
 }
 
 /// A void HTML element with no closing tag (e.g. `<img>`, `<br>`).

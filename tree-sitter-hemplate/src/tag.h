@@ -145,9 +145,22 @@ typedef struct {
     TagType tag_type;
 } TagMapEntry;
 
+// Element namespace and the context used to classify its children. MathML
+// integration points need a distinct child context for their exceptions.
+typedef enum {
+    NS_HTML,
+    NS_SVG,
+    NS_MATH,
+    NS_MATH_TEXT,
+    NS_MATH_ANNOTATION,
+    NS_AMBIGUOUS,
+} Namespace;
+
 typedef struct {
     TagType type;
     String custom_tag_name;
+    Namespace namespace;
+    Namespace children;
 } Tag;
 
 static const TagMapEntry TAG_TYPES_BY_TAG_NAME[126] = {
@@ -302,6 +315,8 @@ static TagType tag_type_for_name(const String *tag_name) {
 static inline Tag tag_new() {
     Tag tag;
     tag.type = END_;
+    tag.namespace = NS_HTML;
+    tag.children = NS_HTML;
     tag.custom_tag_name = (String) array_new();
     return tag;
 }
@@ -324,7 +339,8 @@ static inline void tag_free(Tag *tag) {
 }
 
 static inline bool tag_is_void(const Tag *self) {
-    return self->type < END_OF_VOID_TAGS;
+    // isindex is obsolete, but modern HTML parses it as an ordinary element.
+    return self->type < END_OF_VOID_TAGS && self->type != ISINDEX;
 }
 
 static inline bool tag_eq(const Tag *self, const Tag *other) {
@@ -348,6 +364,12 @@ static bool tag_can_contain(Tag *self, const Tag *other) {
     TagType child = other->type;
 
     switch (self->type) {
+        case HEAD:
+            return child == BASE || child == BASEFONT || child == BGSOUND ||
+                   child == LINK || child == META || child == TITLE ||
+                   child == NOSCRIPT || child == STYLE ||
+                   child == SCRIPT || child == TEMPLATE;
+
         case LI:
             return child != LI;
 
@@ -374,8 +396,18 @@ static bool tag_can_contain(Tag *self, const Tag *other) {
         case OPTGROUP:
             return child != OPTGROUP;
 
+        case THEAD:
+            return child != TBODY && child != TFOOT;
+
+        case TBODY:
+        case TFOOT:
+            return child != TBODY && child != TFOOT;
+
+        case OPTION:
+            return child != OPTION && child != OPTGROUP;
+
         case TR:
-            return child != TR;
+            return child != TR && child != TBODY && child != TFOOT && child != THEAD;
 
         case TD:
         case TH:

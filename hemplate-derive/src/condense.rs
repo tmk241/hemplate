@@ -8,9 +8,13 @@
 //! - `<pre>`/`<textarea>` content preserved verbatim
 
 use hemplate_core::ast::*;
-use quote::quote;
 
-use crate::codegen::{source_error, Stmt};
+use crate::codegen::{escaped_value, raw_value, source_error, Stmt};
+
+fn point<T>(node: &RangeNode<String, T>) -> (usize, usize) {
+    let start = node.range().start_point;
+    (start.row, start.column)
+}
 
 fn is_ws_char(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\n' | '\r')
@@ -80,7 +84,20 @@ fn condense_ws_stateful(text: &str, prev_ws: &mut bool) -> String {
 }
 
 pub(crate) fn is_pre_tag(tag: &str) -> bool {
-    tag.eq_ignore_ascii_case("pre") || tag.eq_ignore_ascii_case("textarea")
+    [
+        "pre",
+        "listing",
+        "textarea",
+        "title",
+        "plaintext",
+        "xmp",
+        "iframe",
+        "noembed",
+        "noframes",
+        "noscript",
+    ]
+    .iter()
+    .any(|name| tag.eq_ignore_ascii_case(name))
 }
 
 /// Emit text with whitespace condensing (normal flow).
@@ -90,11 +107,13 @@ pub(crate) fn gen_text_condensed(stmts: &mut Vec<Stmt>, text: &Text<String>, tem
         match seg.hemplate() {
             TextSegment::Interpolation(interp) => {
                 prev_ws = false;
-                match syn::parse_str::<syn::Expr>(interp.0.content()) {
+                match crate::expr::parse(interp.0.content()) {
                     Ok(expr) => {
-                        stmts.push(Stmt::Dynamic(quote! {
-                            ::hemplate::__runtime::render::Escaped(&(#expr)).render_to(buf)?;
-                        }));
+                        stmts.push(Stmt::Dynamic(escaped_value(
+                            template_path,
+                            point(&interp.0),
+                            &expr,
+                        )));
                     }
                     Err(e) => {
                         let msg = format!(
@@ -108,15 +127,13 @@ pub(crate) fn gen_text_condensed(stmts: &mut Vec<Stmt>, text: &Text<String>, tem
             }
             TextSegment::RawInterpolation(interp) => {
                 prev_ws = false;
-                match syn::parse_str::<syn::Expr>(interp.0.content()) {
+                match crate::expr::parse(interp.0.content()) {
                     Ok(expr) => {
-                        stmts.push(Stmt::Dynamic(quote! {
-                            {
-                                let value = &(#expr);
-                                let _: () = ::hemplate::__runtime::render::RawGuard(value).check();
-                                ::hemplate::__runtime::render::Raw(value).render_to(buf)?;
-                            }
-                        }));
+                        stmts.push(Stmt::Dynamic(raw_value(
+                            template_path,
+                            point(&interp.0),
+                            &expr,
+                        )));
                     }
                     Err(e) => {
                         let msg = format!(
@@ -138,59 +155,52 @@ pub(crate) fn gen_text_condensed(stmts: &mut Vec<Stmt>, text: &Text<String>, tem
     }
 }
 
-/// Emit text verbatim for pre-formatted context. Normalise \r\n → \n
-/// and strip first newline after opening `<pre>`/`<textarea>` per HTML spec.
+/// Emit static text byte-for-byte. The browser, not codegen, applies HTML's
+/// newline normalization and pre/textarea first-newline rule.
 pub(crate) fn gen_text_pre(
     stmts: &mut Vec<Stmt>,
     text: &Text<String>,
-    is_first_child: bool,
+    _is_first_child: bool,
     template_path: &str,
 ) {
-    for (seg_idx, seg) in text.0.iter().enumerate() {
+    for seg in &text.0 {
         match seg.hemplate() {
-            TextSegment::Interpolation(interp) => {
-                match syn::parse_str::<syn::Expr>(interp.0.content()) {
-                    Ok(expr) => {
-                        stmts.push(Stmt::Dynamic(quote! {
-                            ::hemplate::__runtime::render::Escaped(&(#expr)).render_to(buf)?;
-                        }));
-                    }
-                    Err(e) => {
-                        let msg = format!(
-                            "hemplate: invalid interpolation expression `{}`: {}",
-                            interp.0.content(),
-                            e
-                        );
-                        stmts.push(Stmt::Dynamic(source_error(template_path, &interp.0, &msg)));
-                    }
+            TextSegment::Interpolation(interp) => match crate::expr::parse(interp.0.content()) {
+                Ok(expr) => {
+                    stmts.push(Stmt::Dynamic(escaped_value(
+                        template_path,
+                        point(&interp.0),
+                        &expr,
+                    )));
                 }
-            }
-            TextSegment::RawInterpolation(interp) => {
-                match syn::parse_str::<syn::Expr>(interp.0.content()) {
-                    Ok(expr) => {
-                        stmts.push(Stmt::Dynamic(quote! {
-                            {
-                                let value = &(#expr);
-                                let _: () = ::hemplate::__runtime::render::RawGuard(value).check();
-                                ::hemplate::__runtime::render::Raw(value).render_to(buf)?;
-                            }
-                        }));
-                    }
-                    Err(e) => {
-                        let msg = format!(
-                            "hemplate: invalid raw interpolation expression `{}`: {}",
-                            interp.0.content(),
-                            e
-                        );
-                        stmts.push(Stmt::Dynamic(source_error(template_path, &interp.0, &msg)));
-                    }
+                Err(e) => {
+                    let msg = format!(
+                        "hemplate: invalid interpolation expression `{}`: {}",
+                        interp.0.content(),
+                        e
+                    );
+                    stmts.push(Stmt::Dynamic(source_error(template_path, &interp.0, &msg)));
                 }
-            }
+            },
+            TextSegment::RawInterpolation(interp) => match crate::expr::parse(interp.0.content()) {
+                Ok(expr) => {
+                    stmts.push(Stmt::Dynamic(raw_value(
+                        template_path,
+                        point(&interp.0),
+                        &expr,
+                    )));
+                }
+                Err(e) => {
+                    let msg = format!(
+                        "hemplate: invalid raw interpolation expression `{}`: {}",
+                        interp.0.content(),
+                        e
+                    );
+                    stmts.push(Stmt::Dynamic(source_error(template_path, &interp.0, &msg)));
+                }
+            },
             TextSegment::TextChunk(_) | TextSegment::WhitespaceSegment(_) => {
-                let mut content = seg.content().replace("\r\n", "\n");
-                if is_first_child && seg_idx == 0 {
-                    content = content.strip_prefix('\n').unwrap_or(&content).to_string();
-                }
+                let content = seg.content().to_owned();
                 if !content.is_empty() {
                     stmts.push(Stmt::Static(content));
                 }

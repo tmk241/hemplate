@@ -24,8 +24,7 @@ fn parse_attr_value_segments(content: &str) -> Result<Vec<AttrValueSegment<'_>>,
         let raw = rest[start..].starts_with("{+=");
         let (open_len, close) = if raw { (3, "=+}") } else { (2, "+}") };
         let expression = &rest[start + open_len..];
-        let end = expression
-            .find(close)
+        let end = crate::expr::interpolation_end(expression, close)
             .ok_or("unterminated attribute interpolation")?;
         let expression_text = expression[..end].trim();
         segments.push(if raw {
@@ -67,23 +66,30 @@ fn typed_value(
     expression: &syn::Expr,
 ) -> TokenStream {
     let bound = context.bound().expect("typed values have a context trait");
-    let file = template_path
-        .rsplit(['/', '\\'])
-        .next()
-        .unwrap_or(template_path);
-    let site: String = format!(
-        "__hemplate_{}_attr_{attribute}_at_{file}_line_{}_col_{}",
-        context.label(),
-        position.0 + 1,
-        position.1 + 1
-    )
-    .chars()
-    .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-    .collect();
-    let site = syn::Ident::new(&site, proc_macro2::Span::call_site());
+    let kind = format!("{}_attr_{attribute}", context.label());
+    let site = crate::codegen::site_ident(&kind, template_path, position);
     quote! {{
         #[allow(non_snake_case)]
         fn #site<T: #bound + ?Sized>(value: &T) -> &T { value }
+        std::fmt::Write::write_fmt(buf, format_args!("{}", ::hemplate::__runtime::HtmlEscape(#site(&(#expression)))))?;
+    }}
+}
+
+/// Code for one interpolated value whose context only needs escaping.
+///
+/// Like [`typed_value`], the helper's name carries the template position into
+/// the error a value without `Display` produces.
+fn plain_value(
+    attribute: &str,
+    template_path: &str,
+    position: (usize, usize),
+    expression: &syn::Expr,
+) -> TokenStream {
+    let site =
+        crate::codegen::site_ident(&format!("text_attr_{attribute}"), template_path, position);
+    quote! {{
+        #[allow(non_snake_case)]
+        fn #site<T: ::core::fmt::Display + ?Sized>(value: &T) -> &T { value }
         std::fmt::Write::write_fmt(buf, format_args!("{}", ::hemplate::__runtime::HtmlEscape(#site(&(#expression)))))?;
     }}
 }
@@ -95,7 +101,7 @@ fn parse_attr_segment(
     match segment {
         AttrValueSegment::Static(_) => Ok(None),
         AttrValueSegment::Interpolation(expression) => {
-            syn::parse_str(expression).map(Some).map_err(|error| {
+            crate::expr::parse(expression).map(Some).map_err(|error| {
                 format!("hemplate: invalid expression in attribute `{name}`: {error}")
             })
         }
@@ -115,7 +121,7 @@ fn validate_text(text: &Text<String>, template_path: &str) -> Result<(), TokenSt
             TextSegment::RawInterpolation(interpolation) => (&interpolation.0, "raw interpolation"),
             _ => continue,
         };
-        if let Err(error) = syn::parse_str::<syn::Expr>(interpolation.content()) {
+        if let Err(error) = crate::expr::parse(interpolation.content()) {
             let message = format!(
                 "hemplate: invalid {kind} expression `{}`: {error}",
                 interpolation.content()
@@ -132,6 +138,7 @@ fn validate_text(text: &Text<String>, template_path: &str) -> Result<(), TokenSt
 pub(crate) fn validate_interpolations(
     children: &[RangeNode<String, HemplateNode<String>>],
     template_path: &str,
+    edits: &crate::codegen::edits::Edits,
 ) -> Result<(), TokenStream> {
     for child in children {
         let element = match child.hemplate() {
@@ -163,7 +170,7 @@ pub(crate) fn validate_interpolations(
                 element.0.hemplate().1.as_ref(),
             ),
         };
-        let facts = ElementFacts::new(tag, attrs);
+        let facts = effective_facts(tag, attrs, edits, template_path)?;
         if let Some(attrs) = attrs {
             for attr in &attrs.hemplate().0 {
                 if let Attribute::RegularAttribute(RegularAttribute(name, Some(value))) =
@@ -195,7 +202,7 @@ pub(crate) fn validate_interpolations(
             }
         }
         if let Element::RegularElement(element) = element {
-            validate_interpolations(&element.1, template_path)?;
+            validate_interpolations(&element.1, template_path, edits)?;
         }
     }
     Ok(())
@@ -252,12 +259,14 @@ fn gen_interpolated_attr(
     for segment in &segments {
         match parse_attr_segment(name, segment) {
             Ok(Some(expr)) => parts.push(match plan {
-                Plan::Plain => quote! {
-                    std::fmt::Write::write_fmt(buf, format_args!("{}", ::hemplate::__runtime::HtmlEscape(&(#expr))))?;
-                },
-                Plan::Typed(context) => {
-                    typed_value(context, name, template_path, (point.row, point.column), &expr)
-                }
+                Plan::Plain => plain_value(name, template_path, (point.row, point.column), &expr),
+                Plan::Typed(context) => typed_value(
+                    context,
+                    name,
+                    template_path,
+                    (point.row, point.column),
+                    &expr,
+                ),
             }),
             Ok(None) => {
                 if let AttrValueSegment::Static(text) = segment {
@@ -325,35 +334,62 @@ fn gen_dynamic_attr(
         return source_error(template_path, &da.0, "hemplate: dynamic Boolean or hidden binding has ambiguous HTML context; dynamic or character-reference annotation-xml encoding requires a literal static encoding when Boolean or hidden descendants are present");
     }
     let expr_str = strip_quotes(da.1.content());
-    match syn::parse_str::<syn::Expr>(expr_str) {
-        Ok(expr) if hidden && namespace == Namespace::Html => quote! {
-            ::hemplate::__runtime::hidden::render_hidden(&(#expr), #attr_name, buf)?;
-        },
-        Ok(expr) if boolean && namespace == Namespace::Html => quote! {
-            if #expr {
-                buf.write_str(concat!(" ", #attr_name))?;
+    let start = da.1.range().start_point;
+    let position = (start.row, start.column);
+    match crate::expr::parse(expr_str) {
+        // Every whole dynamic attribute is present unless its value is `None`;
+        // the helper names keep the template position in type errors.
+        Ok(source) if hidden && namespace == Namespace::Html => {
+            let site = crate::codegen::site_ident("hidden_attr", template_path, position);
+            quote! {
+                if let ::core::option::Option::Some(__hemplate_present) =
+                    ::hemplate::__runtime::render::Present(&(#source)).get()
+                {
+                    #[allow(non_snake_case)]
+                    fn #site<T: ::hemplate::__runtime::HiddenAttribute + ?Sized>(value: &T) -> &T { value }
+                    ::hemplate::__runtime::hidden::render_hidden(#site(__hemplate_present), #attr_name, buf)?;
+                }
             }
-        },
-        Ok(expr) => {
+        }
+        Ok(source) if boolean && namespace == Namespace::Html => {
+            let site = crate::codegen::site_ident(
+                &format!("bool_attr_{attr_name}"),
+                template_path,
+                position,
+            );
+            quote! {
+                if let ::core::option::Option::Some(__hemplate_present) =
+                    ::hemplate::__runtime::render::Present(&(#source)).get()
+                {
+                    #[allow(non_snake_case)]
+                    fn #site<T: ::hemplate::__runtime::BooleanAttribute + ?Sized>(value: &T) -> bool {
+                        value.present()
+                    }
+                    if #site(__hemplate_present) {
+                        buf.write_str(concat!(" ", #attr_name))?;
+                    }
+                }
+            }
+        }
+        Ok(source) => {
+            // `None` omits the whole attribute; any other value is rendered
+            // through the same escaping and context checks as before.
+            // The value as written, so checks and messages name its own type.
+            let present: syn::Expr = syn::parse_quote!((*__hemplate_present));
             let value = match plan(classify(facts, attr_name), attr_name, &[Part::Value]) {
                 Ok(Plan::Typed(context)) => {
-                    let point = da.1.range().start_point;
-                    typed_value(
-                        context,
-                        attr_name,
-                        template_path,
-                        (point.row, point.column),
-                        &expr,
-                    )
+                    typed_value(context, attr_name, template_path, position, &present)
                 }
-                _ => quote! {
-                    std::fmt::Write::write_fmt(buf, format_args!("{}", ::hemplate::__runtime::HtmlEscape(&(#expr))))?;
-                },
+                _ => plain_value(attr_name, template_path, position, &present),
             };
             quote! {
-                buf.write_str(concat!(" ", #attr_name, "=\""))?;
-                #value
-                buf.write_str("\"")?;
+                if let ::core::option::Option::Some(__hemplate_present) =
+                    ::hemplate::__runtime::render::Present(&(#source)).get()
+                {
+                    buf.write_str(concat!(" ", #attr_name, "=\""))?;
+                    #value
+                    buf.write_str("\"")?;
+                }
             }
         }
         Err(e) => {
@@ -361,6 +397,80 @@ fn gen_dynamic_attr(
             source_error(template_path, &da.1, &msg)
         }
     }
+}
+
+/// Parse replacements as attributes, not rendered template code. A replacement
+/// may remove an attribute or supply several static attributes, but cannot close
+/// the start tag or introduce dynamic syntax.
+fn replacement_attributes(text: &str) -> Result<Vec<RangeNode<String, Attribute<String>>>, String> {
+    let start_tag = format!("<hemplate-transform {text}>");
+    let markup = format!("{start_tag}</hemplate-transform>");
+    let invalid =
+        || "hemplate: transform replacement must contain only static attributes".to_string();
+    let doc = build_ast(std::sync::Arc::new(markup))
+        .map_err(|_| invalid())?
+        .ok_or_else(invalid)?;
+    let [node] = doc.hemplate().children().as_slice() else {
+        return Err(invalid());
+    };
+    let HemplateNode::Element(Element::RegularElement(element)) = node.hemplate() else {
+        return Err(invalid());
+    };
+    if element.0.content() != start_tag || !element.1.is_empty() {
+        return Err(invalid());
+    }
+    let attrs = element
+        .0
+        .hemplate()
+        .1
+        .as_ref()
+        .map(|attrs| attrs.hemplate().0.clone())
+        .unwrap_or_default();
+    if attrs.iter().any(|attr| {
+        !matches!(attr.hemplate(),
+            Attribute::RegularAttribute(RegularAttribute(name, value))
+                if strip_attr_eq(name.content()) != "h-key"
+                    && !value.as_ref().is_some_and(|value| has_interpolation(value.content()))
+        )
+    }) {
+        return Err(invalid());
+    }
+    Ok(attrs)
+}
+
+/// Classify the markup that will actually be emitted while keeping every
+/// original AST node (and therefore its diagnostic span) unchanged.
+fn effective_facts(
+    tag: &str,
+    attrs: Option<&RangeNode<String, Attributes<String>>>,
+    edits: &crate::codegen::edits::Edits,
+    template_path: &str,
+) -> Result<ElementFacts, TokenStream> {
+    let mut facts = ElementFacts::new(tag);
+    let Some(attrs_node) = attrs else {
+        return Ok(facts);
+    };
+    for attr in &attrs_node.hemplate().0 {
+        if let Attribute::RegularAttribute(regular) = attr.hemplate() {
+            if !regular
+                .1
+                .as_ref()
+                .is_some_and(|value| has_interpolation(value.content()))
+            {
+                let range = attr.range();
+                if let Some(text) = edits.attribute_preview(range.start_byte, range.end_byte) {
+                    let replacements = replacement_attributes(&text)
+                        .map_err(|message| source_error(template_path, attr, &message))?;
+                    for replacement in &replacements {
+                        facts.note_attribute(replacement.hemplate());
+                    }
+                    continue;
+                }
+            }
+        }
+        facts.note_attribute(attr.hemplate());
+    }
+    Ok(facts)
 }
 
 /// Classify element attributes into codegen token streams.
@@ -373,14 +483,40 @@ pub(crate) fn classify_attrs(
     tag: &str,
     namespace: Namespace,
     template_path: &str,
+    edits: &crate::codegen::edits::Edits,
 ) -> AttrInfo {
     let mut regular_attrs = Vec::new();
-    let facts = ElementFacts::new(tag, attrs);
+    let facts = match effective_facts(tag, attrs, edits, template_path) {
+        Ok(facts) => facts,
+        Err(error) => {
+            return AttrInfo {
+                regular_attrs: vec![error],
+            }
+        }
+    };
     if let Some(attrs_node) = attrs {
         for attr in &attrs_node.hemplate().0 {
             match attr.hemplate() {
                 Attribute::RegularAttribute(ra) => {
-                    regular_attrs.push(gen_static_attr(ra, &facts, template_path));
+                    if strip_attr_eq(ra.0.content()) == "h-key" {
+                        continue;
+                    }
+                    let interpolated =
+                        ra.1.as_ref()
+                            .is_some_and(|value| has_interpolation(value.content()));
+                    let range = attr.range();
+                    // Only plain static markup may be replaced; an edit on an
+                    // interpolated attribute stays unplaced and fails.
+                    let edit = (!interpolated)
+                        .then(|| edits.attribute(range.start_byte, range.end_byte))
+                        .flatten();
+                    regular_attrs.push(match edit {
+                        Some(text) => {
+                            let markup = format!(" {text}");
+                            quote! { buf.write_str(#markup)?; }
+                        }
+                        None => gen_static_attr(ra, &facts, template_path),
+                    });
                 }
                 Attribute::DynamicAttribute(da) => {
                     regular_attrs.push(gen_dynamic_attr(da, tag, &facts, namespace, template_path));
@@ -458,6 +594,53 @@ mod tests {
             segs[0],
             AttrValueSegment::RawInterpolation("raw_expr")
         ));
+    }
+
+    #[test]
+    fn parse_segments_ignore_delimiters_in_rust_tokens() {
+        for expression in [
+            r#""+}""#,
+            r##"r#"a "+}" b"#"##,
+            r#"format!("{}", '}')"#,
+            r"'\''",
+            "/* +} { /* =+} [ */ */ 1",
+            "1 // +} {\n + 2",
+            "{ let x = 1; /* } +} */ x }",
+        ] {
+            for (open, close) in [("{+", "+}"), ("{+=", "=+}")] {
+                let value = format!("before{open} {expression} {close}after");
+                let segments = parse_attr_value_segments(&value).unwrap();
+                assert!(
+                    matches!(segments.as_slice(), [
+                        AttrValueSegment::Static("before"),
+                        AttrValueSegment::Interpolation(found)
+                            | AttrValueSegment::RawInterpolation(found),
+                        AttrValueSegment::Static("after"),
+                    ] if *found == expression),
+                    "{value}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn parse_segments_reject_unterminated_rust_tokens() {
+        for value in [
+            "{+ \"unterminated +}",
+            "{+ r#\"unterminated +}",
+            "{+ /* +}",
+            "{+ /* outer /* nested */ +}",
+            "{+ 1 // +}",
+            "{+ (1 +}",
+        ] {
+            assert!(
+                matches!(
+                    parse_attr_value_segments(value),
+                    Err("unterminated attribute interpolation")
+                ),
+                "{value}"
+            );
+        }
     }
 
     #[test]

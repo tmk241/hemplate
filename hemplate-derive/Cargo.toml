@@ -1,6 +1,6 @@
 [package]
 name = "hemplate-derive"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2021"
 license.workspace = true
 readme = "README.md"
@@ -17,6 +17,12 @@ proc-macro = true
 [dependencies]
 proc-macro2 = "1"
 quote = "1"
-syn = { version = "2", features = ["full"] }
+syn = { version = "2", features = ["full", "visit"] }
 
-hemplate-core = { version = "0.3.1", path = "../hemplate-core" }
+hemplate-core = { version = "0.4.0", path = "../hemplate-core" }
+
+[dev-dependencies]
+html5ever = "0.40.1"
+hemplate-parser = { version = "0.3.0", path = "../hemplate-parser" }
+hemplate-fmt = { version = "0.1.0", path = "../hemplate-fmt" }
+hemplate-core = { version = "0.4.0", path = "../hemplate-core", features = ["surface"] }

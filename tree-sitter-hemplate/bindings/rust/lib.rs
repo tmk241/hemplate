@@ -57,6 +57,56 @@ mod tests {
     }
 
     #[test]
+    fn incremental_annotation_edits_reclassify_raw_content() {
+        use tree_sitter::{InputEdit, Point};
+
+        fn interpolation_count(node: tree_sitter::Node<'_>) -> usize {
+            usize::from(node.kind() == "interpolation")
+                + node
+                    .named_children(&mut node.walk())
+                    .map(interpolation_count)
+                    .sum::<usize>()
+        }
+
+        let mut parser = tree_sitter::Parser::new();
+        parser.set_language(&super::LANGUAGE.into()).unwrap();
+        let prefix = "<math><annotation-xml encoding='";
+        let suffix = "'><xmp>{+ value +}</xmp></annotation-xml></math>";
+        let mut encoding = "application/xml";
+        let mut tree = parser
+            .parse(format!("{prefix}{encoding}{suffix}"), None)
+            .unwrap();
+        for (next_encoding, expected_interpolations) in [
+            ("text/html", 0),
+            ("application/xml", 1),
+            ("application/xhtml+xml", 0),
+            ("application/xml", 1),
+        ] {
+            let start = prefix.len();
+            tree.edit(&InputEdit {
+                start_byte: start,
+                old_end_byte: start + encoding.len(),
+                new_end_byte: start + next_encoding.len(),
+                start_position: Point::new(0, start),
+                old_end_position: Point::new(0, start + encoding.len()),
+                new_end_position: Point::new(0, start + next_encoding.len()),
+            });
+            let source = format!("{prefix}{next_encoding}{suffix}");
+            tree = parser.parse(&source, Some(&tree)).unwrap();
+            assert!(!tree.root_node().has_error(), "{source}");
+            assert_eq!(
+                interpolation_count(tree.root_node()),
+                expected_interpolations
+            );
+            assert_eq!(
+                tree.root_node().to_sexp(),
+                parser.parse(&source, None).unwrap().root_node().to_sexp()
+            );
+            encoding = next_encoding;
+        }
+    }
+
+    #[test]
     fn bundled_queries_compile() {
         let language = super::LANGUAGE.into();
         for (name, source) in [

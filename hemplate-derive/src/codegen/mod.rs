@@ -1,6 +1,13 @@
 mod control_flow;
+mod directives;
+pub(crate) mod edits;
 pub(crate) mod namespace;
+use edits::Edits;
 use namespace::Namespace;
+#[cfg(test)]
+mod fmt_equivalence;
+#[cfg(test)]
+mod html5_conformance;
 #[cfg(test)]
 mod tests;
 
@@ -38,9 +45,67 @@ pub(crate) fn source_error<T>(
     ))
 }
 
-/// Push a compile error statement.
-fn push_err(stmts: &mut Vec<Stmt>, msg: String) {
-    stmts.push(Stmt::Dynamic(compile_err(&msg)));
+/// An identifier naming a template position, for helpers whose names rustc
+/// prints in errors: `__hemplate_<kind>_at_<file>_line_<l>_col_<c>`.
+pub(crate) fn site_ident(
+    kind: &str,
+    template_path: &str,
+    (row, column): (usize, usize),
+) -> syn::Ident {
+    let file = template_path
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(template_path);
+    let site: String = format!(
+        "__hemplate_{kind}_at_{file}_line_{}_col_{}",
+        row + 1,
+        column + 1
+    )
+    .chars()
+    .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+    .collect();
+    syn::Ident::new(&site, proc_macro2::Span::call_site())
+}
+
+/// Code rendering one `{+ expr +}`: a component renders, `Display` is escaped.
+pub(crate) fn escaped_value(
+    template_path: &str,
+    point: (usize, usize),
+    expr: &syn::Expr,
+) -> TokenStream {
+    let site = site_ident("text", template_path, point);
+    quote! {{
+        #[allow(non_camel_case_types)]
+        struct #site;
+        ::hemplate::__runtime::render::Escaped::<_, #site>(&(#expr), ::core::marker::PhantomData).render_to(buf)?;
+    }}
+}
+
+/// Code rendering one `{+= expr =+}`; only `HtmlValue` is accepted.
+pub(crate) fn raw_value(
+    template_path: &str,
+    point: (usize, usize),
+    expr: &syn::Expr,
+) -> TokenStream {
+    let site = site_ident("raw_html", template_path, point);
+    quote! {{
+        #[allow(non_camel_case_types)]
+        struct #site {}
+        #[allow(non_snake_case)]
+        fn #site<T: ::hemplate::__runtime::HtmlValue + ?Sized>(
+            value: &T,
+            buf: &mut dyn ::core::fmt::Write,
+        ) -> ::core::result::Result<(), ::hemplate::__runtime::error::RenderError> {
+            ::hemplate::__runtime::render::render_raw(value, buf)
+        }
+        let __hemplate_raw = &(#expr);
+        let _: () = ::hemplate::__runtime::render::RawGuard::<_, #site>(
+            __hemplate_raw,
+            ::core::marker::PhantomData,
+        )
+        .check();
+        #site(__hemplate_raw, buf)?;
+    }}
 }
 
 /// Tracks pre-formatted nesting depth for whitespace condense.
@@ -48,14 +113,19 @@ struct Ctx {
     pre_depth: usize,
     namespace: Namespace,
     template_path: String,
+    edits: Edits,
 }
 
 impl Ctx {
-    fn new(template_path: &str) -> Self {
+    fn new(
+        template_path: &str,
+        transform: Option<&crate::template_source::TemplateTransform>,
+    ) -> Self {
         Self {
             template_path: template_path.into(),
             pre_depth: 0,
             namespace: Namespace::Html,
+            edits: Edits::new(transform),
         }
     }
     fn in_pre(&self) -> bool {
@@ -87,7 +157,10 @@ fn as_directive(attr: &Attribute<String>) -> Option<(&str, Option<&str>)> {
         }
         Attribute::RegularAttribute(ra) => {
             let name = strip_attr_eq(ra.0.content());
-            if name.starts_with("h-") {
+            if matches!(
+                name,
+                "h-if" | "h-else-if" | "h-else" | "h-for" | "h-match" | "h-case"
+            ) {
                 let val = ra.1.as_ref().map(|v| strip_quotes(v.content()));
                 Some((name, val))
             } else {
@@ -103,13 +176,33 @@ fn gen_open_tag(
     stmts: &mut Vec<Stmt>,
     tag: &str,
     attrs: Option<&RangeNode<String, Attributes<String>>>,
+    opening: &str,
+    self_closing: bool,
 ) {
+    let static_unchanged = attrs.is_none_or(|attrs| {
+        attrs.hemplate().0.iter().all(|attr| {
+            matches!(attr.hemplate(), Attribute::RegularAttribute(RegularAttribute(name, value))
+            if strip_attr_eq(name.content()) != "h-key"
+                && value.as_ref().is_none_or(|value| !value.content().contains("{+")))
+                && ctx
+                    .edits
+                    .attribute_preview(attr.range().start_byte, attr.range().end_byte)
+                    .is_none()
+        })
+    });
+    if static_unchanged {
+        let closing = if self_closing { "/>" } else { ">" };
+        let opening = opening.strip_suffix(closing).unwrap_or(opening);
+        stmts.push(Stmt::Static(opening.to_owned()));
+        return;
+    }
     let lower_tag = tag.to_ascii_lowercase();
     let info = classify_attrs(
         attrs,
         &lower_tag,
         ctx.namespace.element(&lower_tag),
         &ctx.template_path,
+        &ctx.edits,
     );
     stmts.push(Stmt::Static(format!("<{}", tag)));
     for attr_ts in info.regular_attrs {
@@ -120,18 +213,25 @@ fn gen_open_tag(
 pub(crate) fn generate_body(
     doc: &RangeNode<String, Document<String>>,
     template_path: &str,
+    transform: Option<&crate::template_source::TemplateTransform>,
 ) -> TokenStream {
+    if let Err(error) = directives::validate(doc.hemplate().children(), template_path, false) {
+        return error;
+    }
+    let mut ctx = Ctx::new(template_path, transform);
     if let Err(error) =
-        crate::attr::validate_interpolations(doc.hemplate().children(), template_path)
+        crate::attr::validate_interpolations(doc.hemplate().children(), template_path, &ctx.edits)
     {
         return error;
     }
-    let mut ctx = Ctx::new(template_path);
     let mut stmts = Vec::new();
     if let Some(dt) = doc.hemplate().doctype() {
         stmts.push(Stmt::Static(dt.content().to_string()));
     }
     gen_children(&mut ctx, &mut stmts, doc.hemplate().children());
+    if let Some(error) = ctx.edits.unplaced(template_path) {
+        return error;
+    }
     let merged = merge_statics(stmts);
     let tokens: Vec<TokenStream> = merged
         .into_iter()
@@ -154,25 +254,7 @@ fn gen_children(
         let child = &children[i];
         match child.hemplate() {
             HemplateNode::Element(elem) => {
-                let directives = get_element_directives(elem);
-                let actionable_directives: Vec<_> = directives
-                    .iter()
-                    .filter(|(name, _)| name != "h-key")
-                    .collect();
-                if actionable_directives.len() > 1 {
-                    let names: Vec<&str> = actionable_directives
-                        .iter()
-                        .map(|(n, _)| n.as_str())
-                        .collect();
-                    let msg = format!(
-                        "hemplate: element has multiple directives ({}); \
-                         only one directive per element is allowed",
-                        names.join(", ")
-                    );
-                    push_err(stmts, msg);
-                    i += 1;
-                    prev_was_chain = false;
-                } else if matches!(directives.first(), Some((n, _)) if n == "h-if") {
+                if matches!(get_element_directive_info(elem), Some((n, _)) if n == "h-if") {
                     i = gen_if_chain(ctx, stmts, children, i, None);
                     prev_was_chain = true;
                 } else {
@@ -222,31 +304,23 @@ fn gen_children(
     }
 }
 
-fn get_element_directives(elem: &Element<String>) -> Vec<(String, Option<String>)> {
-    let attrs = match elem {
+pub(super) fn element_attrs(
+    elem: &Element<String>,
+) -> Option<&RangeNode<String, Attributes<String>>> {
+    match elem {
         Element::RegularElement(re) => re.0.hemplate().1.as_ref(),
         Element::VoidElement(ve) => ve.0.hemplate().1.as_ref(),
         Element::SelfClosingElement(sc) => sc.1.as_ref(),
-        Element::ScriptElement(_) | Element::StyleElement(_) => None,
-    };
-    attrs
-        .map(|a| {
-            a.hemplate()
-                .0
-                .iter()
-                .filter_map(|attr| {
-                    as_directive(attr.hemplate())
-                        .map(|(name, val)| (name.to_string(), val.map(|v| v.to_string())))
-                })
-                .collect()
-        })
-        .unwrap_or_default()
+        Element::ScriptElement(se) => se.0.hemplate().1.as_ref(),
+        Element::StyleElement(se) => se.0.hemplate().1.as_ref(),
+    }
 }
 
 fn get_element_directive_info(elem: &Element<String>) -> Option<(String, Option<String>)> {
-    get_element_directives(elem)
-        .into_iter()
-        .find(|(name, _)| name != "h-key")
+    element_attrs(elem)?.hemplate().0.iter().find_map(|attr| {
+        as_directive(attr.hemplate())
+            .map(|(name, value)| (name.to_owned(), value.map(str::to_owned)))
+    })
 }
 
 fn gen_element_body_tokens(ctx: &mut Ctx, elem: &Element<String>) -> TokenStream {
@@ -271,19 +345,6 @@ fn gen_element(ctx: &mut Ctx, stmts: &mut Vec<Stmt>, elem: &Element<String>) {
         Some((ref name, ref val)) if name == "h-match" => {
             gen_match(ctx, stmts, elem, val.as_deref().unwrap_or(""));
         }
-        Some((ref name, _)) if name == "h-else" || name == "h-else-if" => {
-            let msg = format!(
-                "hemplate: `{}` without a preceding `h-if` on a sibling element",
-                name
-            );
-            push_err(stmts, msg);
-        }
-        Some((ref name, _)) if name == "h-case" => {
-            push_err(
-                stmts,
-                "hemplate: `h-case` must be a direct child of an element with `h-match`".into(),
-            );
-        }
         Some(_) | None => gen_element_inner(ctx, stmts, elem),
     }
 }
@@ -293,7 +354,7 @@ fn gen_element_inner(ctx: &mut Ctx, stmts: &mut Vec<Stmt>, elem: &Element<String
         Element::RegularElement(re) => {
             let tag = re.0.hemplate().0.content();
             let is_pre = is_pre_tag(tag);
-            if tag.eq_ignore_ascii_case("template") {
+            if tag.eq_ignore_ascii_case("template") && get_element_directive_info(elem).is_some() {
                 if is_pre {
                     ctx.pre_depth += 1;
                 }
@@ -303,8 +364,18 @@ fn gen_element_inner(ctx: &mut Ctx, stmts: &mut Vec<Stmt>, elem: &Element<String
                 }
                 return;
             }
-            gen_open_tag(ctx, stmts, tag, re.0.hemplate().1.as_ref());
+            gen_open_tag(
+                ctx,
+                stmts,
+                tag,
+                re.0.hemplate().1.as_ref(),
+                re.0.content(),
+                false,
+            );
             stmts.push(Stmt::Static(">".to_string()));
+            if let Some(markup) = ctx.edits.insertion(re.0.range().end_byte) {
+                stmts.push(Stmt::Static(markup));
+            }
             if is_pre {
                 ctx.pre_depth += 1;
             }
@@ -319,7 +390,9 @@ fn gen_element_inner(ctx: &mut Ctx, stmts: &mut Vec<Stmt>, elem: &Element<String
             if is_pre {
                 ctx.pre_depth -= 1;
             }
-            stmts.push(Stmt::Static(format!("</{}>", tag)));
+            if let Some(end) = &re.2 {
+                stmts.push(Stmt::Static(end.content().to_owned()));
+            }
         }
         Element::VoidElement(ve) => {
             gen_open_tag(
@@ -327,37 +400,77 @@ fn gen_element_inner(ctx: &mut Ctx, stmts: &mut Vec<Stmt>, elem: &Element<String
                 stmts,
                 ve.0.hemplate().0.content(),
                 ve.0.hemplate().1.as_ref(),
+                ve.0.content(),
+                false,
             );
             stmts.push(Stmt::Static(">".to_string()));
         }
         Element::SelfClosingElement(sc) => {
             let tag = sc.0.content();
-            gen_open_tag(ctx, stmts, tag, sc.1.as_ref());
-            // Non-void self-closing tags (e.g. <div/>) expand to <div></div>
-            stmts.push(Stmt::Static(format!("></{tag}>")));
+            let html = ctx.namespace.element(&tag.to_ascii_lowercase()) == Namespace::Html;
+            // A browser reads `<div/>` as `<div>`: everything after it would
+            // end up inside. Say so instead of guessing what was meant.
+            if html && !is_html_void(tag) {
+                let message = format!(
+                    "hemplate: `<{tag}/>` does not close in HTML; the browser would put everything after it inside; write `<{tag}></{tag}>`"
+                );
+                stmts.push(Stmt::Dynamic(source_error(
+                    &ctx.template_path,
+                    &sc.0,
+                    &message,
+                )));
+                return;
+            }
+            gen_open_tag(ctx, stmts, tag, sc.1.as_ref(), sc.2.content(), true);
+            // A void element written as `<br/>` stays as written: `</br>` would
+            // be a second line break. Foreign (SVG/MathML) `/>` really closes;
+            // its explicit end tag means the same.
+            if html {
+                stmts.push(Stmt::Static("/>".to_string()));
+            } else {
+                stmts.push(Stmt::Static(format!("></{tag}>")));
+            }
         }
         Element::ScriptElement(se) => {
-            gen_raw_text_element(ctx, stmts, se.0.hemplate(), se.1.as_ref());
+            gen_raw_text_element(ctx, stmts, &se.0, se.1.as_ref(), se.2.content());
         }
         Element::StyleElement(se) => {
-            gen_raw_text_element(ctx, stmts, se.0.hemplate(), se.1.as_ref());
+            gen_raw_text_element(ctx, stmts, &se.0, se.1.as_ref(), se.2.content());
         }
     }
+}
+
+/// Elements the HTML parser treats as void: they never have an end tag.
+fn is_html_void(tag: &str) -> bool {
+    [
+        "area", "base", "basefont", "bgsound", "br", "col", "embed", "frame", "hr", "img", "input",
+        "keygen", "link", "meta", "param", "source", "track", "wbr",
+    ]
+    .iter()
+    .any(|void| tag.eq_ignore_ascii_case(void))
 }
 
 fn gen_raw_text_element(
     ctx: &Ctx,
     stmts: &mut Vec<Stmt>,
-    start_tag: &StartTag<String>,
+    start_tag: &RangeNode<String, StartTag<String>>,
     raw: Option<&RangeNode<String, RawText>>,
+    end_tag: &str,
 ) {
-    let tag = start_tag.0.content();
-    gen_open_tag(ctx, stmts, tag, start_tag.1.as_ref());
+    let tag = start_tag.hemplate().0.content();
+    gen_open_tag(
+        ctx,
+        stmts,
+        tag,
+        start_tag.hemplate().1.as_ref(),
+        start_tag.content(),
+        false,
+    );
     stmts.push(Stmt::Static(">".to_string()));
     if let Some(raw) = raw {
         stmts.push(Stmt::Static(raw.content().to_string()));
     }
-    stmts.push(Stmt::Static(format!("</{}>", tag)));
+    stmts.push(Stmt::Static(end_tag.to_owned()));
 }
 
 fn merge_statics(stmts: Vec<Stmt>) -> Vec<Stmt> {

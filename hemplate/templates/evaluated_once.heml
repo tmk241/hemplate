@@ -1,1 +1,1 @@
-<p>{+= self.next() =+}|{+ self.next() +}</p><pre>{+= self.next() =+}|{+ self.next() +}</pre><textarea>{+= self.next() =+}</textarea>
+<p>{+= hemplate::TrustedHtml::new_unchecked(self.next()) =+}|{+ self.next() +}</p><pre>{+= hemplate::TrustedHtml::new_unchecked(self.next()) =+}|{+ self.next() +}</pre><textarea>{+= hemplate::TrustedHtml::new_unchecked(self.next()) =+}</textarea>

@@ -5,6 +5,7 @@ members = [
     "hemplate-axum",
     "hemplate-core",
     "hemplate-derive",
+    "hemplate-fmt",
     "hemplate-parser",
     "hemplate-runtime",
     "tree-sitter-hemplate",

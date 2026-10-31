@@ -9,7 +9,7 @@ Requires Rust 1.91 or newer.
 ```toml
 [dependencies]
 tree-sitter = "0.25"
-tree-sitter-hemplate = "0.2.0"
+tree-sitter-hemplate = "0.3.0"
 ```
 
 When migrating from 0.1, use `hemplate-parser` 0.2 and `hemplate-core` 0.3 if

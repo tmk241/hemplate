@@ -6,7 +6,7 @@ use hemplate_core::ast::build_ast_from_file;
 use hemplate_core::error::BuildError;
 
 /// Malformed or edge-case inputs must not panic.
-/// We only assert that build_ast returns Ok(Some) or Ok(None) without crashing.
+/// Recovered malformed syntax must be rejected rather than partially extracted.
 
 #[test]
 fn empty_string() {
@@ -17,26 +17,26 @@ fn empty_string() {
 #[test]
 fn unclosed_tag() {
     let result = build_ast(Arc::new("<div>hello".to_string()));
-    // Parser should handle gracefully (tree-sitter does error recovery)
-    assert!(result.is_ok());
+    // Tree-sitter editor recovery must not reach rendering.
+    assert!(result.is_err());
 }
 
 #[test]
 fn mismatched_tags() {
     let result = build_ast(Arc::new("<div>hello</span>".to_string()));
-    assert!(result.is_ok());
+    assert!(result.is_err());
 }
 
 #[test]
 fn garbage_bytes() {
     let result = build_ast(Arc::new("<<<>>>!!!@@@###".to_string()));
-    assert!(result.is_ok());
+    assert!(result.is_err());
 }
 
 #[test]
 fn partial_html() {
     let result = build_ast(Arc::new("</div>".to_string()));
-    assert!(result.is_ok());
+    assert!(result.is_err());
 }
 
 #[test]
@@ -48,13 +48,13 @@ fn only_whitespace() {
 #[test]
 fn unclosed_comment() {
     let result = build_ast(Arc::new("<!-- unclosed".to_string()));
-    assert!(result.is_ok());
+    assert!(result.is_err());
 }
 
 #[test]
 fn nested_unclosed() {
     let result = build_ast(Arc::new("<div><span>".to_string()));
-    assert!(result.is_ok());
+    assert!(result.is_err());
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn bare_ampersand() {
 #[test]
 fn script_with_unclosed_tag() {
     let result = build_ast(Arc::new("<script>var x = 1;".to_string()));
-    assert!(result.is_ok());
+    assert!(result.is_err());
 }
 
 // B-16: Error path tests
@@ -161,4 +161,77 @@ fn io_error_converts_to_hemplate_error() {
     let io_err = std::io::Error::other("test");
     let hemplate_err: BuildError = io_err.into();
     assert!(matches!(hemplate_err, BuildError::Io(_)));
+}
+
+#[test]
+fn foreign_raw_text_names_do_not_hide_malformed_interpolation() {
+    for wrapper in [
+        "<svg>MARK</svg>",
+        "<math>MARK</math>",
+        "<math><title>MARK</title></math>",
+        "<math><foreignObject>MARK</foreignObject></math>",
+        "<svg><mtext>MARK</mtext></svg>",
+        "<math><mtext><mglyph>MARK</mglyph></mtext></math>",
+        "<math><mi><malignmark>MARK</malignmark></mi></math>",
+        "<math><annotation-xml>MARK</annotation-xml></math>",
+        "<math><annotation-xml encoding='application/xml'>MARK</annotation-xml></math>",
+        "<math><annotation-xml encoding='application/xml' encoding='text/html'>MARK</annotation-xml></math>",
+        "<math><annotation-xml encoding encoding='text/html'>MARK</annotation-xml></math>",
+        "<math><annotation-xml encoding='text/htmŌ'>MARK</annotation-xml></math>",
+        r#"<math><annotation-xml data-v="{+ "encoding='text/html'" +}" encoding='application/xml'>MARK</annotation-xml></math>"#,
+        r#"<svg><font data-v="{+ "color='red'" +}">MARK</font></svg>"#,
+        "<svg><foreignObject><svg>MARK</svg></foreignObject></svg>",
+    ] {
+        for tag in [
+            "xmp",
+            "iframe",
+            "noembed",
+            "noframes",
+            "plaintext",
+            "script",
+            "style",
+            "title",
+            "textarea",
+        ] {
+            let source = wrapper.replace("MARK", &format!("<{tag}>{{+ broken</{tag}>"));
+            let error = build_ast(Arc::new(source.clone())).unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("malformed or unsupported interpolation"),
+                "{source}: {error}"
+            );
+            let BuildError::Parse(error) = error else {
+                panic!("expected parse error")
+            };
+            assert_eq!(error.byte_offset, source.find("{+ broken").unwrap());
+        }
+    }
+}
+
+#[test]
+fn html_integration_points_keep_raw_text_literal_including_malformed_openers() {
+    for wrapper in [
+        "MARK",
+        "<svg><foreignObject>MARK</foreignObject></svg>",
+        "<svg><desc>MARK</desc></svg>",
+        "<svg><title>MARK</title></svg>",
+        "<math><mtext>MARK</mtext></math>",
+        "<math><mi>MARK</mi></math>",
+        "<math><mo>MARK</mo></math>",
+        "<math><mn>MARK</mn></math>",
+        "<math><ms>MARK</ms></math>",
+        "<math><annotation-xml encoding='TEXT/HTML'>MARK</annotation-xml></math>",
+        "<math><annotation-xml encoding=application/xhtml+xml>MARK</annotation-xml></math>",
+        "<math><annotation-xml EnCoDiNg = 'text/html' encoding='application/xml'>MARK</annotation-xml></math>",
+        r#"<math><annotation-xml data-v="{+ "encoding='application/xml'" +}" encoding='text/html'>MARK</annotation-xml></math>"#,
+        "<math><annotation-xml><svg><desc>MARK</desc></svg></annotation-xml></math>",
+        "<svg><div>MARK</div></svg>",
+        "<math><font face='serif'>MARK</font></math>",
+    ] {
+        for tag in ["xmp", "iframe", "noembed", "noframes", "script", "style"] {
+            let source = wrapper.replace("MARK", &format!("<{tag}>{{+ broken</{tag}>"));
+            assert!(build_ast(Arc::new(source.clone())).is_ok(), "{source}");
+        }
+    }
 }

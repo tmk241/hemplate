@@ -5,6 +5,7 @@ mod attr;
 mod codegen;
 mod condense;
 mod context;
+mod expr;
 mod template_source;
 
 use template_source::{extract_dir_attribute, resolve_template_path, TemplateSource};
@@ -18,7 +19,7 @@ pub fn derive_hemplate(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
         syn::Data::Struct(_) => {
             let source = match template_source::load(&input.attrs, name) {
                 Ok(source) => source,
-                Err(error) => return error.to_compile_error().into(),
+                Err(error) => return failed(&input, error).into(),
             };
             gen_struct_tokens(&input, &source).into()
         }
@@ -32,20 +33,44 @@ pub fn derive_hemplate(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
     }
 }
 
+/// Report a template that cannot be compiled once, at its source.
+///
+/// The placeholder implementation keeps callers such as `.render()` type
+/// checking, so rustc shows only the template diagnostic, not follow-on errors.
+fn failed(input: &DeriveInput, error: syn::Error) -> proc_macro2::TokenStream {
+    let name = &input.ident;
+    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let error = error.to_compile_error();
+    quote! {
+        #error
+        impl #impl_generics ::hemplate::__runtime::Hemplate for #name #type_generics #where_clause {
+            fn render_into(&self, _: &mut dyn ::core::fmt::Write) -> Result<(), ::hemplate::__runtime::error::RenderError> {
+                ::core::unreachable!("template failed to compile")
+            }
+        }
+    }
+}
+
 fn gen_struct_tokens(input: &DeriveInput, source: &TemplateSource) -> proc_macro2::TokenStream {
     let name = &input.ident;
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
-    let body = codegen::generate_body(&source.ast, &template_source::diagnostic_path(&source.path));
+    let body = codegen::generate_body(
+        &source.ast,
+        &template_source::diagnostic_path(&source.path),
+        source.transform.as_ref(),
+    );
     let template_size_hint = source.ast.content().len();
     let tracked_dependency = template_source::tracked_dependency(&source.path);
+    let tracked_transform = template_source::tracked_transform(source.transform.as_ref());
     let output = quote! {
         #tracked_dependency
+        #tracked_transform
 
         impl #impl_generics ::hemplate::__runtime::Hemplate for #name #type_generics #where_clause {
             fn render_into(&self, buf: &mut dyn ::core::fmt::Write) -> Result<(), ::hemplate::__runtime::error::RenderError> {
                 use std::fmt::Write as _;
                 use ::hemplate::__runtime::render::EscapedFallback as _;
-                use ::hemplate::__runtime::render::RawFallback as _;
+                use ::hemplate::__runtime::render::PresentFallback as _;
                 use ::hemplate::__runtime::render::RawGuardFallback as _;
                 #body
                 Ok(())
@@ -74,7 +99,7 @@ fn gen_enum_impl(
     let enum_snake = to_snake_case(&name.to_string());
     let enum_dir = match extract_dir_attribute(&input.attrs, &input.ident) {
         Ok(d) => d,
-        Err(e) => return e.to_compile_error().into(),
+        Err(e) => return failed(input, e).into(),
     };
     let default_dir = if enum_dir.is_empty() {
         enum_snake.clone()
@@ -85,6 +110,7 @@ fn gen_enum_impl(
     let mut match_arms = Vec::new();
     let mut size_hint_arms = Vec::new();
     let mut template_paths = Vec::new();
+    let mut tracked_transforms = Vec::new();
 
     for variant in &data_enum.variants {
         let variant_ident = &variant.ident;
@@ -107,7 +133,7 @@ fn gen_enum_impl(
         let variant_snake = to_snake_case(&variant_ident.to_string());
         let variant_dir = match extract_dir_attribute(&variant.attrs, variant_ident) {
             Ok(d) => d,
-            Err(e) => return e.to_compile_error().into(),
+            Err(e) => return failed(input, e).into(),
         };
         let dir = if variant_dir.is_empty() {
             default_dir.clone()
@@ -116,16 +142,29 @@ fn gen_enum_impl(
         };
         let variant_path = match resolve_template_path(&dir, &variant_snake, variant_ident) {
             Ok(p) => p,
-            Err(e) => return e.to_compile_error().into(),
+            Err(e) => return failed(input, e).into(),
         };
         template_paths.push(variant_path.clone());
 
         let ast = match template_source::load_variant(&variant_path, variant_ident, &input.ident) {
             Ok(ast) => ast,
-            Err(error) => return error.to_compile_error().into(),
+            Err(error) => return failed(input, error).into(),
         };
 
-        let body = codegen::generate_body(&ast, &template_source::diagnostic_path(&variant_path));
+        let transform = match template_source::load_variant_transform(
+            &variant_path,
+            variant_ident,
+            &input.ident,
+        ) {
+            Ok(transform) => transform,
+            Err(error) => return failed(input, error).into(),
+        };
+        tracked_transforms.push(template_source::tracked_transform(transform.as_ref()));
+        let body = codegen::generate_body(
+            &ast,
+            &template_source::diagnostic_path(&variant_path),
+            transform.as_ref(),
+        );
         let template_size_hint = ast.content().len();
 
         let (arm, size_hint_arm) = match &variant.fields {
@@ -176,12 +215,13 @@ fn gen_enum_impl(
 
     let output = quote! {
         #tracked_dependencies
+        #(#tracked_transforms)*
 
         impl #impl_generics ::hemplate::__runtime::Hemplate for #name #type_generics #where_clause {
             fn render_into(&self, buf: &mut dyn ::core::fmt::Write) -> Result<(), ::hemplate::__runtime::error::RenderError> {
                 use std::fmt::Write as _;
                 use ::hemplate::__runtime::render::EscapedFallback as _;
-                use ::hemplate::__runtime::render::RawFallback as _;
+                use ::hemplate::__runtime::render::PresentFallback as _;
                 use ::hemplate::__runtime::render::RawGuardFallback as _;
                 match self {
                     #(#match_arms)*
@@ -229,6 +269,7 @@ mod tests {
         let source = TemplateSource {
             path: "probe.heml".into(),
             ast,
+            transform: None,
         };
         let output = gen_struct_tokens(&input, &source).to_string();
 

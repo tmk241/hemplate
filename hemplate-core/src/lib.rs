@@ -9,5 +9,7 @@ pub mod error;
 /// Stable build-time surface extraction for downstream tools.
 #[cfg(feature = "surface")]
 pub mod surface;
+/// Build-supplied static markup edits applied by the derive macro.
+pub mod transform;
 
 pub use error::{BuildError, ExtractionError, ParseError};

@@ -1,0 +1,6 @@
+<script>
+  const marker = '{+ this is not Rust +}';
+  const close = '</scriptx>';
+</SCRIPT ><style>
+  .x { content: '{+ literal +} </stylex>'; }
+</STYLE >

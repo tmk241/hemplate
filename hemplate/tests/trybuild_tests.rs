@@ -21,11 +21,19 @@ fn compile_fail() {
         "ui_malformed_interpolation",
         "ui_dynamic_try",
         "ui_unsupported_interpolation",
+        "ui_unclosed_interpolation",
         "ui_unterminated_attribute",
         "ui_elided_attribute",
         "ui_elided_raw_attribute",
         "ui_raw_child",
         "ui_raw_component",
+        "ui_raw_string",
+        "ui_unsafe_interpolation",
+        "ui_optional_url_string",
+        "ui_raw_trusted_component",
+        "ui_trusted_child",
+        "ui_boolean_string",
+        "ui_self_closing_div",
         "ui_script_context",
         "ui_style_document_navigation",
         "ui_resource_context",
@@ -44,6 +52,12 @@ fn compile_fail() {
     let t = trybuild::TestCases::new();
     t.compile_fail("tests/ui/fail_*.rs");
     t.compile_fail("tests/ui/reject_dynamic_try.rs");
+    t.compile_fail("tests/ui/reject_raw_string.rs");
+    t.compile_fail("tests/ui/reject_unsafe_interpolation.rs");
+    t.compile_fail("tests/ui/reject_optional_url_string.rs");
+    t.compile_fail("tests/ui/reject_raw_trusted_component.rs");
+    t.compile_fail("tests/ui/reject_boolean_string.rs");
+    t.compile_fail("tests/ui/reject_self_closing_div.rs");
 
     // Context rules: a plain value where the attribute is read as code, CSS, a
     // document, navigation, a loaded resource or an unchecked URL does not compile.

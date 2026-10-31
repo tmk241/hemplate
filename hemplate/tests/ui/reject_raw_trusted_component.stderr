@@ -1,0 +1,9 @@
+error[E0308]: mismatched types
+  --> tests/ui/reject_raw_trusted_component.rs:16:10
+   |
+16 | #[derive(Hemplate)]
+   |          ^^^^^^^^ expected `()`, found `RawInterpolationNotAllowedForHemplateTypes<...>`
+   |
+   = note: expected unit type `()`
+                 found struct `RawInterpolationNotAllowedForHemplateTypes<__hemplate_raw_html_at_ui_raw_trusted_component_heml_line_1_col_8>`
+   = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)

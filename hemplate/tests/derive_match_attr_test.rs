@@ -227,8 +227,13 @@ fn dynamic_boolean_attributes_preserve_html_context() {
             "annotation-xml encoding=\"application/xhtml+xml\"",
         ] {
             let presence = if enabled { " checked" } else { "" };
+            let close = if integration == "foreignObject" {
+                ">"
+            } else {
+                "/>"
+            };
             assert!(
-                html.contains(&format!("<{integration}><input{presence}>")),
+                html.contains(&format!("<{integration}><input{presence}{close}")),
                 "{html}"
             );
         }

@@ -72,7 +72,8 @@ impl<S: AsRef<str>> Extractable<S> for RangeNode<S, StartTag<S>> {
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub(crate) struct EndTag<S: AsRef<str>>(pub(crate) RangeNode<S, TagName>);
+/// An explicit closing tag, retaining its original spelling and spacing.
+pub struct EndTag<S: AsRef<str>>(pub RangeNode<S, TagName>);
 impl<S: AsRef<str>> NodeKind for EndTag<S> {
     fn node_kind() -> &'static str {
         "end_tag"

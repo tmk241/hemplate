@@ -6,6 +6,7 @@ use tree_sitter::{Node, Range};
 use crate::error::{BuildError, ExtractionError, ParseError};
 
 mod interpolation_validation;
+mod markup_validation;
 
 /// AST node types for attributes.
 pub mod attribute;
@@ -127,6 +128,7 @@ where
     })?;
     let root = tree.root_node();
     interpolation_validation::validate_interpolations(root, input.as_ref().as_ref())?;
+    markup_validation::validate(root, input.as_ref().as_ref())?;
 
     Ok(RangeNode::<S, Document<S>>::extract(&root, input)?)
 }

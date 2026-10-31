@@ -1,0 +1,1 @@
+before<!-- template-only {+ not Rust +} -->after<template id='inert'><p>kept</p></template>

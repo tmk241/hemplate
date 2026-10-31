@@ -21,7 +21,9 @@ fn arb_heml() -> impl Strategy<Value = String> {
             inner
                 .clone()
                 .prop_map(|c| format!("<span class=\"x\">{c}</span>")),
-            inner.prop_map(|c| format!("<p>{c}</p>")),
+            // Recursive paragraphs are not closed under HTML parsing: a block
+            // child implicitly ends <p>, leaving an unmatched explicit </p>.
+            inner.prop_map(|c| format!("<section>{c}</section>")),
             Just("<br/>".to_string()),
             Just("<img src=\"x\">".to_string()),
         ]

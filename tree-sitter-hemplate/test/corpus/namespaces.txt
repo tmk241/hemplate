@@ -1,0 +1,524 @@
+==================
+SVG raw-text names interpolate as ordinary foreign elements
+==================
+<svg><xmp>{+ value +}</xmp></svg>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name))
+          (text
+            (interpolation
+              (interpolation_expression)))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))
+
+==================
+SVG integration points restore literal HTML raw text
+==================
+<svg><foreignObject><xmp>{+ literal +}</xmp></foreignObject></svg>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name))
+          (element
+            (regular_element
+              (start_tag
+                (tag_name))
+              (text
+                (text_chunk))
+              (end_tag
+                (tag_name))))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))
+
+==================
+SVG title is an integration point rather than HTML RCDATA
+==================
+<svg><title><xmp>{+ literal +}</xmp></title></svg>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name))
+          (element
+            (regular_element
+              (start_tag
+                (tag_name))
+              (text
+                (text_chunk))
+              (end_tag
+                (tag_name))))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))
+
+==================
+A MathML title does not act as an SVG integration point
+==================
+<math><title><xmp>{+ value +}</xmp></title></math>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name))
+          (element
+            (regular_element
+              (start_tag
+                (tag_name))
+              (text
+                (interpolation
+                  (interpolation_expression)))
+              (end_tag
+                (tag_name))))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))
+
+==================
+A foreignObject in MathML does not restore HTML
+==================
+<math><foreignObject><xmp>{+ value +}</xmp></foreignObject></math>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name))
+          (element
+            (regular_element
+              (start_tag
+                (tag_name))
+              (text
+                (interpolation
+                  (interpolation_expression)))
+              (end_tag
+                (tag_name))))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))
+
+==================
+MathML text integration points restore HTML raw text
+==================
+<math><mtext><xmp>{+ literal +}</xmp></mtext></math>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name))
+          (element
+            (regular_element
+              (start_tag
+                (tag_name))
+              (text
+                (text_chunk))
+              (end_tag
+                (tag_name))))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))
+
+==================
+MathML text integration exceptions retain the foreign namespace
+==================
+<math><mtext><mglyph><xmp>{+ value +}</xmp></mglyph></mtext></math>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name))
+          (element
+            (regular_element
+              (start_tag
+                (tag_name))
+              (element
+                (regular_element
+                  (start_tag
+                    (tag_name))
+                  (text
+                    (interpolation
+                      (interpolation_expression)))
+                  (end_tag
+                    (tag_name))))
+              (end_tag
+                (tag_name))))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))
+
+==================
+Static annotation encoding restores HTML raw text
+==================
+<math><annotation-xml encoding='TEXT/HTML'><xmp>{+ literal +}</xmp></annotation-xml></math>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name)
+            (attributes
+              (ignored_whitespace_segment
+                (ignored_soft_whitespace
+                  (space)))
+              (attribute
+                (regular_attribute
+                  (attribute_name)
+                  (attribute_value
+                    (quoted_value
+                      (single_quoted_value
+                        (text
+                          (text_chunk)))))))))
+          (element
+            (regular_element
+              (start_tag
+                (tag_name))
+              (text
+                (text_chunk))
+              (end_tag
+                (tag_name))))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))
+
+==================
+Annotation without HTML encoding remains foreign
+==================
+<math><annotation-xml encoding='application/xml'><xmp>{+ value +}</xmp></annotation-xml></math>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name)
+            (attributes
+              (ignored_whitespace_segment
+                (ignored_soft_whitespace
+                  (space)))
+              (attribute
+                (regular_attribute
+                  (attribute_name)
+                  (attribute_value
+                    (quoted_value
+                      (single_quoted_value
+                        (text
+                          (text_chunk)))))))))
+          (element
+            (regular_element
+              (start_tag
+                (tag_name))
+              (text
+                (interpolation
+                  (interpolation_expression)))
+              (end_tag
+                (tag_name))))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))
+
+==================
+SVG inside an annotation without encoding starts SVG
+==================
+<math><annotation-xml><svg><desc><xmp>{+ literal +}</xmp></desc></svg></annotation-xml></math>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name))
+          (element
+            (regular_element
+              (start_tag
+                (tag_name))
+              (element
+                (regular_element
+                  (start_tag
+                    (tag_name))
+                  (element
+                    (regular_element
+                      (start_tag
+                        (tag_name))
+                      (text
+                        (text_chunk))
+                      (end_tag
+                        (tag_name))))
+                  (end_tag
+                    (tag_name))))
+              (end_tag
+                (tag_name))))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))
+
+==================
+Nested SVG exits an HTML integration point
+==================
+<svg><foreignObject><svg><xmp>{+ value +}</xmp></svg></foreignObject></svg>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name))
+          (element
+            (regular_element
+              (start_tag
+                (tag_name))
+              (element
+                (regular_element
+                  (start_tag
+                    (tag_name))
+                  (text
+                    (interpolation
+                      (interpolation_expression)))
+                  (end_tag
+                    (tag_name))))
+              (end_tag
+                (tag_name))))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))
+
+==================
+Foreign breakouts restore HTML raw text for descendants and following siblings
+==================
+<svg><g><div><xmp>{+ literal +}</xmp></div><xmp>{+ literal +}</xmp></g></svg>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name))
+          (element
+            (regular_element
+              (start_tag
+                (tag_name))
+              (element
+                (regular_element
+                  (start_tag
+                    (tag_name))
+                  (text
+                    (text_chunk))
+                  (end_tag
+                    (tag_name))))
+              (end_tag
+                (tag_name))))
+          (element
+            (regular_element
+              (start_tag
+                (tag_name))
+              (text
+                (text_chunk))
+              (end_tag
+                (tag_name))))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))
+
+==================
+Font attributes trigger a foreign breakout
+==================
+<svg><font color='red'><xmp>{+ literal +}</xmp></font></svg>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name)
+            (attributes
+              (ignored_whitespace_segment
+                (ignored_soft_whitespace
+                  (space)))
+              (attribute
+                (regular_attribute
+                  (attribute_name)
+                  (attribute_value
+                    (quoted_value
+                      (single_quoted_value
+                        (text
+                          (text_chunk)))))))))
+          (element
+            (regular_element
+              (start_tag
+                (tag_name))
+              (text
+                (text_chunk))
+              (end_tag
+                (tag_name))))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))
+
+==================
+Font without breakout attributes stays foreign
+==================
+<svg><font><xmp>{+ value +}</xmp></font></svg>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name))
+          (element
+            (regular_element
+              (start_tag
+                (tag_name))
+              (text
+                (interpolation
+                  (interpolation_expression)))
+              (end_tag
+                (tag_name))))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))
+
+==================
+Foreign script and style use ordinary interpolation
+==================
+<svg><script>{+ value +}</script><style>{+ value +}</style></svg>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name))
+          (text
+            (interpolation
+              (interpolation_expression)))
+          (end_tag
+            (tag_name))))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name))
+          (text
+            (interpolation
+              (interpolation_expression)))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))
+
+==================
+Malformed foreign opener remains text for compiler validation
+==================
+<svg><xmp>{+ broken</xmp></svg>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (element
+        (regular_element
+          (start_tag
+            (tag_name))
+          (text
+            (text_chunk)
+            (whitespace_segment
+              (soft_whitespace
+                (space)))
+            (text_chunk))
+          (end_tag
+            (tag_name))))
+      (end_tag
+        (tag_name)))))

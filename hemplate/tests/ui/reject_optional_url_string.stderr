@@ -1,0 +1,15 @@
+error[E0277]: `String` is not a checked URL, so it cannot be the whole value of a URL attribute
+ --> tests/ui/reject_optional_url_string.rs:4:10
+  |
+4 | #[derive(Hemplate)]
+  |          ^^^^^^^^ a string could hold a `javascript:` URL
+  |
+  = help: the trait `UrlValue` is not implemented for `String`
+  = note: parse it with `hemplate::Url::parse(..)` and handle the error, or start the attribute with fixed text such as `/`, `?`, `#` or `https://`
+  = note: for a scheme such as `data:` or `sms:`, vouch for it explicitly with `hemplate::TrustedUrl::new_unchecked(..)`
+note: required by a bound in `__hemplate_url_attr_href_at_ui_optional_url_string_heml_line_1_col_10`
+ --> tests/ui/reject_optional_url_string.rs:4:10
+  |
+4 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_url_attr_href_at_ui_optional_url_string_heml_line_1_col_10`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -1,0 +1,5 @@
+error: hemplate: templates/ui_silent_loss.heml:1:11: hemplate: closing </a> does not match open <p> (line 1, column 11)
+ --> tests/ui/reject_silent_loss.rs:4:8
+  |
+4 | struct UiSilentLoss;
+  |        ^^^^^^^^^^^^

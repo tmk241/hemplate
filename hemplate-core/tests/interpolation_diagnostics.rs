@@ -7,12 +7,9 @@ fn malformed_and_unsupported_interpolation_has_source_location() {
     for expression in [
         "{+ +}",
         "{+ self.value +",
-        "{+ self.value? +}",
-        "{+ if self.flag { 1 } else { 2 } +}",
-        "{+ self.value +  +}",
+        "{+ \"unterminated +}",
         "{+= =+}",
         "{+= self.value =+",
-        "{+= self.value? =+}",
         "{+= self.value +}",
     ] {
         let source = format!("<p>ok</p>\n<p>{expression}</p>");
@@ -35,17 +32,10 @@ fn malformed_and_unsupported_interpolation_has_source_location() {
 #[test]
 fn recovered_dynamic_attributes_are_rejected_before_ast_extraction() {
     for source in [
-        r#"<video><source +src="crate::view_url(&self.video_src)?" +type="self.video_media_type">Video unavailable.</video>"#,
-        r#"<div +title="self.value?"></div>"#,
-        "<input +value='self.value?'>after",
-        r#"<custom +title="self.value?"/>"#,
-        r#"<script +id="self.value?">literal</script>"#,
-        r#"<style +id="self.value?">literal</style>"#,
-        r#"<template +title="self.value?">discarded</template>"#,
-        r#"<div +title="self.value" +id="self.other?"></div>"#,
-        r#"<div +title="self.value +"></div>"#,
         r#"<div +title=""></div>"#,
         "<div +title=self.value></div>",
+        "<input +value='self.value>after",
+        r#"<video><source +src="crate::view_url(&self.video_src)?></video>"#,
     ] {
         let error = match build_ast(Arc::new(source.to_string())) {
             Err(BuildError::Parse(error)) => error,
@@ -91,5 +81,71 @@ fn existing_interpolation_and_literal_contexts_still_parse() {
         "<div title='{+ self.value? +}'></div>",
     ] {
         assert!(build_ast(Arc::new(source.to_string())).is_ok(), "{source}");
+    }
+}
+
+/// The grammar no longer judges Rust: a complete interpolation or dynamic
+/// attribute keeps its whole expression for the derive macro to parse, rather
+/// than being truncated or dropped as recovered text.
+#[test]
+fn complete_interpolations_keep_their_entire_expression() {
+    for (source, expressions) in [
+        (
+            r#"<video><source +src="crate::view_url(&self.video_src)?" +type="self.video_media_type">Video unavailable.</video>"#,
+            vec!["crate::view_url(&self.video_src)?", "self.video_media_type"],
+        ),
+        ("<p>{+ self.value? +}</p>", vec!["self.value?"]),
+        (r"<p>{+ '\''+}</p>", vec![r"'\''"]),
+        (
+            "<p>{+ if self.flag { 1 } else { 2 } +}</p>",
+            vec!["if self.flag { 1 } else { 2 }"],
+        ),
+        ("<p>{+ self.value +  +}</p>", vec!["self.value +"]),
+        ("<p>{+= self.value? =+}</p>", vec!["self.value?"]),
+        (
+            "<p>{+ Header::new(\n  a(),\n  b(),\n) +}</p>",
+            vec!["Header::new(\n  a(),\n  b(),\n)"],
+        ),
+        (
+            r#"<p>{+ S { a: "x +} y", b: '}' } +}</p>"#,
+            vec![r#"S { a: "x +} y", b: '}' }"#],
+        ),
+    ] {
+        assert!(build_ast(Arc::new(source.to_string())).is_ok(), "{source}");
+        let tree = hemplate_parser::parse_template(source, None).unwrap();
+        let mut found = Vec::new();
+        collect(tree.root_node(), source, &mut found);
+        assert_eq!(found, expressions, "{source}");
+    }
+}
+
+#[test]
+fn rust_comments_do_not_change_interpolation_boundaries() {
+    for expression in [
+        "/* { */ 1",
+        "/* +} =+} } ] ) */ 2",
+        "/* outer /* { +} */ [ =+} */ 3",
+        "4 // { [ ( +} =+}\n + 1",
+        "{ /* } +} */ 6 }",
+        "8 / /* { */ 2",
+    ] {
+        for (open, close) in [("{+", "+}"), ("{+=", "=+}")] {
+            let source = format!("<p>{open} {expression} {close}</p>");
+            assert!(build_ast(Arc::new(source.clone())).is_ok(), "{source}");
+            let tree = hemplate_parser::parse_template(&source, None).unwrap();
+            let mut found = Vec::new();
+            collect(tree.root_node(), &source, &mut found);
+            assert_eq!(found, [expression], "{source}");
+        }
+    }
+}
+
+fn collect<'a>(node: tree_sitter::Node<'_>, source: &'a str, found: &mut Vec<&'a str>) {
+    if matches!(node.kind(), "interpolation_expression" | "expression") {
+        found.push(&source[node.byte_range()]);
+        return;
+    }
+    for child in node.children(&mut node.walk()) {
+        collect(child, source, found);
     }
 }

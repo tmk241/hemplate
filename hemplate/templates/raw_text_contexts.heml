@@ -1,0 +1,1 @@
+<title>text <b>literal</b> {+ self.value +}</title><iframe><b>{+ literal +}</b></iframe><p>after</p>

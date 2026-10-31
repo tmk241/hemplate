@@ -1,4 +1,4 @@
-error: hemplate: #[hemplate = "..."] must be a relative directory, not an absolute path
+error: hemplate: #[hemplate = "..."] must be a relative directory below templates/, not an absolute path, a drive or share, or a path with `..`
  --> tests/ui/fail_absolute_path.rs:6:8
   |
 6 | struct AbsolutePath {

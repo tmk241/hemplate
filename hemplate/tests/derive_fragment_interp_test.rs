@@ -295,7 +295,7 @@ fn test_disambiguation_different_dir() {
 #[derive(Hemplate)]
 #[hemplate = "components"]
 struct RawContent {
-    html: String,
+    html: hemplate::TrustedHtml,
 }
 
 // Outer struct composes inner via {+ self.content +}
@@ -309,7 +309,7 @@ struct RawWrapper {
 fn test_composition_with_raw_interpolation() {
     let wrapper = RawWrapper {
         content: RawContent {
-            html: "<b>trusted</b>".into(),
+            html: hemplate::TrustedHtml::new_unchecked("<b>trusted</b>"),
         },
     };
     let html = wrapper.render().unwrap();

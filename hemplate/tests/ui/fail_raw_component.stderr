@@ -2,6 +2,38 @@ error[E0308]: mismatched types
  --> tests/ui/fail_raw_component.rs:6:10
   |
 6 | #[derive(Hemplate)]
-  |          ^^^^^^^^ expected `()`, found `RawInterpolationNotAllowedForHemplateTypes`
+  |          ^^^^^^^^ expected `()`, found `RawInterpolationNotAllowedForHemplateTypes<...>`
   |
+  = note: expected unit type `()`
+                found struct `RawInterpolationNotAllowedForHemplateTypes<__hemplate_raw_html_at_ui_raw_component_heml_line_1_col_8>`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `UiRawChild` is not trusted HTML, so raw interpolation `{+= .. =+}` cannot insert it
+ --> tests/ui/fail_raw_component.rs:6:10
+  |
+6 | #[derive(Hemplate)]
+  |          ^^^^^^^^ raw output is inserted unescaped; a string could hold a `<script>` from user input
+  |
+help: the trait `HtmlValue` is not implemented for `UiRawChild`
+ --> tests/ui/fail_raw_component.rs:4:1
+  |
+4 | struct UiRawChild;
+  | ^^^^^^^^^^^^^^^^^
+  = note: for text use escaped interpolation `{+ .. +}`, and for a child template `{+ child +}`
+  = note: for markup someone vouches for, use `hemplate::TrustedHtml::new_unchecked(..)` or a type implementing `hemplate::HtmlValue`
+note: required by a bound in `__hemplate_raw_html_at_ui_raw_component_heml_line_1_col_8`
+ --> tests/ui/fail_raw_component.rs:6:10
+  |
+6 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_raw_html_at_ui_raw_component_heml_line_1_col_8`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+ --> tests/ui/fail_raw_component.rs:6:10
+  |
+6 | #[derive(Hemplate)]
+  |          ^^^^^^^^ expected `()`, found `RawInterpolationNotAllowedForHemplateTypes<...>`
+  |
+  = note: expected unit type `()`
+                found struct `RawInterpolationNotAllowedForHemplateTypes<__hemplate_raw_html_at_ui_raw_component_heml_line_1_col_35>`
   = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)

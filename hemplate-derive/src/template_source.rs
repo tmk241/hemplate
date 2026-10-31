@@ -3,6 +3,29 @@ use std::path::Path;
 pub(super) struct TemplateSource {
     pub(super) path: String,
     pub(super) ast: hemplate_core::ast::RangeNode<String, hemplate_core::ast::Document<String>>,
+    pub(super) transform: Option<TemplateTransform>,
+}
+
+/// A build-supplied transform verified against the template source it edits.
+#[derive(Clone)]
+pub(crate) struct TemplateTransform {
+    pub(crate) file: String,
+    pub(crate) edits: Vec<hemplate_core::transform::Edit>,
+    source: String,
+}
+
+impl TemplateTransform {
+    /// One-based line and column of a byte offset in the original template.
+    pub(crate) fn position(&self, offset: usize) -> (usize, usize) {
+        let before = &self.source[..offset.min(self.source.len())];
+        let line = before.matches('\n').count() + 1;
+        let column = before
+            .rsplit('\n')
+            .next()
+            .map_or(0, |text| text.chars().count())
+            + 1;
+        (line, column)
+    }
 }
 
 pub(super) fn load(
@@ -18,7 +41,69 @@ pub(super) fn load(
             format!("hemplate: {}", build_error_message(&path, error)),
         )
     })?;
-    Ok(TemplateSource { path, ast })
+    let transform = load_transform(&path).map_err(|message| {
+        syn::Error::new_spanned(
+            name,
+            format!("hemplate: {}: {message}", diagnostic_path(&path)),
+        )
+    })?;
+    Ok(TemplateSource {
+        path,
+        ast,
+        transform,
+    })
+}
+
+/// Read the transform an integration's build script wrote for this template.
+///
+/// Without the directory variable, or without a file for this template, the
+/// template renders exactly as authored.
+pub(super) fn load_transform(template_path: &str) -> Result<Option<TemplateTransform>, String> {
+    let dir = std::env::var_os(hemplate_core::transform::DIR_ENV);
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".into());
+    load_transform_from(dir.as_deref().map(Path::new), &manifest_dir, template_path)
+}
+
+fn load_transform_from(
+    dir: Option<&Path>,
+    manifest_dir: &str,
+    template_path: &str,
+) -> Result<Option<TemplateTransform>, String> {
+    use hemplate_core::transform::{path_for, source_hash, Transform};
+
+    let Some(dir) = dir else {
+        return Ok(None);
+    };
+    let templates = Path::new(manifest_dir).join("templates");
+    let Ok(relative) = Path::new(template_path).strip_prefix(&templates) else {
+        return Ok(None);
+    };
+    let file = path_for(dir, relative);
+    let text = match std::fs::read_to_string(&file) {
+        Ok(text) => text,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(format!("cannot read transform {}: {error}", file.display())),
+    };
+    let file = file.display().to_string();
+    let transform =
+        Transform::decode(&text).map_err(|message| format!("transform {file}: {message}"))?;
+    let source = std::fs::read_to_string(template_path)
+        .map_err(|error| format!("cannot read template: {error}"))?;
+    if transform.source_hash != source_hash(&source) {
+        return Err(format!(
+            "transform {file} was produced for a different version of this template; rebuild so its build script runs again"
+        ));
+    }
+    // A matching hash still cannot vouch for offsets: check them against the
+    // source before any edit or diagnostic slices it.
+    transform
+        .validate_source(&source)
+        .map_err(|message| format!("transform {file}: {message}"))?;
+    Ok(Some(TemplateTransform {
+        file,
+        edits: transform.edits,
+        source,
+    }))
 }
 
 pub(super) fn load_variant(
@@ -38,6 +123,22 @@ pub(super) fn load_variant(
     })
 }
 
+pub(super) fn load_variant_transform(
+    template_path: &str,
+    variant: &syn::Ident,
+    enum_name: &syn::Ident,
+) -> Result<Option<TemplateTransform>, syn::Error> {
+    load_transform(template_path).map_err(|message| {
+        syn::Error::new_spanned(
+            enum_name,
+            format!(
+                "hemplate: variant {variant}: {}: {message}",
+                diagnostic_path(template_path)
+            ),
+        )
+    })
+}
+
 pub(super) fn diagnostic_path(template_path: &str) -> String {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".into());
     Path::new(template_path)
@@ -50,7 +151,19 @@ pub(super) fn diagnostic_path(template_path: &str) -> String {
 fn build_error_message(path: &str, error: hemplate_core::error::BuildError) -> String {
     match error {
         hemplate_core::error::BuildError::Parse(error) => {
-            format!("{}: {error}", diagnostic_path(path))
+            if error.message.starts_with("hemplate: ") {
+                let source = std::fs::read_to_string(path).unwrap_or_default();
+                let before = &source[..error.byte_offset.min(source.len())];
+                let line = before.matches('\n').count() + 1;
+                let column = before.rsplit('\n').next().unwrap_or("").len() + 1;
+                format!(
+                    "{}:{line}:{column}: {}",
+                    diagnostic_path(path),
+                    error.message
+                )
+            } else {
+                format!("{}: {error}", diagnostic_path(path))
+            }
         }
         other => other.to_string(),
     }
@@ -61,6 +174,14 @@ pub(super) fn tracked_dependency(template_path: &str) -> proc_macro2::TokenStrea
     // the template with rustc/Cargo and is optimized out of the final binary.
     quote::quote! {
         const _: &[u8] = ::core::include_bytes!(#template_path);
+    }
+}
+
+/// Track a transform file so editing or removing it recompiles the template.
+pub(super) fn tracked_transform(transform: Option<&TemplateTransform>) -> proc_macro2::TokenStream {
+    match transform {
+        Some(transform) => tracked_dependency(&transform.file),
+        None => proc_macro2::TokenStream::new(),
     }
 }
 
@@ -108,16 +229,27 @@ pub(super) fn extract_dir_attribute(
                      don't include the templates/ prefix",
                 ));
             }
-            if dir.starts_with('/') {
+            if !stays_below_templates(&dir) {
                 return Err(syn::Error::new_spanned(
                     ident,
-                    "hemplate: #[hemplate = \"...\"] must be a relative directory, \
-                     not an absolute path",
+                    "hemplate: #[hemplate = \"...\"] must be a relative directory below templates/, \
+                     not an absolute path, a drive or share, or a path with `..`",
                 ));
             }
             Ok(dir)
         }
     }
+}
+
+/// Whether a directory attribute names a place below `templates/` on every host.
+///
+/// Judged on the text, not the build host's `Path`, so a Windows drive, UNC
+/// share or root is rejected even when the macro runs on Linux, and vice versa.
+fn stays_below_templates(dir: &str) -> bool {
+    let bytes = dir.as_bytes();
+    let rooted = dir.starts_with(['/', '\\']);
+    let drive = bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':';
+    !rooted && !drive && dir.split(['/', '\\']).all(|part| part != "..")
 }
 
 pub(super) fn find_templates_recursive(
@@ -199,8 +331,72 @@ pub(super) fn resolve_template_path(
 }
 
 #[cfg(test)]
+impl TemplateTransform {
+    pub(crate) fn for_test(source: &str, edits: Vec<hemplate_core::transform::Edit>) -> Self {
+        Self {
+            file: "inline.transform".into(),
+            edits,
+            source: source.into(),
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn transforms_load_only_when_configured_and_current() {
+        use hemplate_core::transform::{path_for, source_hash, Edit, Transform};
+
+        let root = std::env::temp_dir().join(format!("hemplate_transform_{}", std::process::id()));
+        let manifest = root.join("crate");
+        let transforms = root.join("out");
+        std::fs::create_dir_all(manifest.join("templates/nested")).unwrap();
+        std::fs::create_dir_all(transforms.join("nested")).unwrap();
+        let template = manifest.join("templates/nested/card.heml");
+        let source = "<p class=\"a\">x</p>";
+        std::fs::write(&template, source).unwrap();
+        let template = template.to_str().unwrap();
+        let manifest = manifest.to_str().unwrap();
+
+        // Without the variable, or without a file, the template is unchanged.
+        assert!(load_transform_from(None, manifest, template)
+            .unwrap()
+            .is_none());
+        assert!(load_transform_from(Some(&transforms), manifest, template)
+            .unwrap()
+            .is_none());
+
+        let current = Transform {
+            source_hash: source_hash(source),
+            edits: vec![Edit {
+                range: 2..11,
+                text: "class=\"b\"".into(),
+            }],
+        };
+        let file = path_for(&transforms, Path::new("nested/card.heml"));
+        std::fs::write(&file, current.encode().unwrap()).unwrap();
+        let loaded = load_transform_from(Some(&transforms), manifest, template)
+            .unwrap()
+            .unwrap();
+        assert_eq!(loaded.edits, current.edits);
+        assert_eq!(loaded.position(11), (1, 12));
+
+        let stale = Transform {
+            source_hash: source_hash("<p></p>"),
+            ..current
+        };
+        std::fs::write(&file, stale.encode().unwrap()).unwrap();
+        let error = load_transform_from(Some(&transforms), manifest, template)
+            .err()
+            .unwrap();
+        assert!(
+            error.contains("different version of this template"),
+            "{error}"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
 
     #[test]
     fn find_templates_recursive_discovers_nested() {
@@ -254,6 +450,27 @@ mod tests {
         }
         let valid: syn::Attribute = syn::parse_quote!(#[hemplate = "admin"]);
         assert_eq!(extract_dir_attribute(&[valid], &ident).unwrap(), "admin");
+        for escaping in [
+            "C:\\templates",
+            "c:/templates",
+            "\\\\server\\share",
+            "\\root",
+            "admin/../../secrets",
+            "..\\outside",
+        ] {
+            let attribute: syn::Attribute = syn::parse_quote!(#[hemplate = #escaping]);
+            let error = extract_dir_attribute(&[attribute], &ident).unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("relative directory below templates/"),
+                "{escaping}: {error}"
+            );
+        }
+        for nested in ["admin/users", "admin\\users", "a..b"] {
+            let attribute: syn::Attribute = syn::parse_quote!(#[hemplate = #nested]);
+            assert_eq!(extract_dir_attribute(&[attribute], &ident).unwrap(), nested);
+        }
         assert_eq!(extract_dir_attribute(&[], &ident).unwrap(), "");
     }
 }

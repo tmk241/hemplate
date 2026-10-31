@@ -149,14 +149,14 @@ fn test_interpolation_escapes_xss() {
 
 #[derive(Hemplate)]
 struct RawInterp {
-    html: String,
+    html: hemplate::TrustedHtml,
     text: String,
 }
 
 #[test]
 fn test_raw_interpolation_no_escape() {
     let t = RawInterp {
-        html: "<b>bold</b>".into(),
+        html: hemplate::TrustedHtml::new_unchecked("<b>bold</b>"),
         text: "<b>bold</b>".into(),
     };
     let html = t.render().unwrap();

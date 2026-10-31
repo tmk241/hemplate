@@ -66,7 +66,7 @@ struct VectorLink {
 
 #[derive(Hemplate)]
 struct VectorTyped {
-    link: String,
+    link: hemplate::TrustedHtml,
     color: Rgb,
     srcset: Srcset,
 }
@@ -76,8 +76,10 @@ fn typed_page(payload: &str, vector: &str) -> String {
     // The application meets the payload at the boundary and decides: a bad URL
     // gives no link, a bad color the default, a bad candidate no image.
     let link = match Url::parse(&payload) {
-        Ok(url) => VectorLink { url }.render().unwrap(),
-        Err(_) => "<span id=\"link\">no link: URL not accepted</span>".to_string(),
+        Ok(url) => hemplate::TrustedHtml::new_unchecked(VectorLink { url }.render().unwrap()),
+        Err(_) => hemplate::TrustedHtml::new_unchecked(
+            "<span id=\"link\">no link: URL not accepted</span>",
+        ),
     };
     let color = Rgb::parse(&payload).unwrap_or_else(|| Rgb("color: #000000".into()));
     let srcset = Url::parse(&payload)

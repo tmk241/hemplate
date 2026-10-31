@@ -60,46 +60,37 @@ fn test_textarea_is_not_condensed() {
     );
 }
 
-// --- CRLF normalization in preformatted content ---
+// --- Browser-owned CRLF normalization in preformatted content ---
 
 #[derive(Hemplate)]
 struct CrlfTest;
 
 #[test]
-fn test_crlf_normalized_in_pre() {
+fn test_crlf_preserved_in_pre() {
     let html = CrlfTest.render().unwrap();
-    // CRLF should be normalized to LF inside <pre>
     assert!(
-        !html.contains("\r\n"),
-        "CRLF not normalized to LF: {:?}",
-        html
-    );
-    assert!(
-        html.contains("line1\nline2"),
-        "LF content not present after normalization: {:?}",
-        html
+        html.contains("<pre>line1\r\nline2\r\n  indented</pre>"),
+        "{html:?}"
     );
 }
 
 #[test]
-fn test_crlf_first_newline_stripped_in_pre() {
+fn test_pre_without_a_leading_newline_does_not_gain_one() {
     let html = CrlfTest.render().unwrap();
-    // Per HTML spec, first newline after <pre> opening tag is stripped
+    // This source starts with text, not a newline.
     assert!(
         html.contains("<pre>line1"),
-        "first newline after <pre> not stripped: {:?}",
+        "unexpected bytes after <pre>: {:?}",
         html
     );
 }
 
 #[test]
-fn test_crlf_textarea_normalized() {
+fn test_crlf_textarea_preserved() {
     let html = CrlfTest.render().unwrap();
-    // CRLF in textarea should also be normalized
     assert!(
-        !html.contains("\r"),
-        "CRLF in textarea not normalized: {:?}",
-        html
+        html.contains("<textarea>keep  spaces\r\nand\ttabs</textarea>"),
+        "{html:?}"
     );
     assert!(
         html.contains("keep  spaces"),
@@ -109,40 +100,6 @@ fn test_crlf_textarea_normalized() {
 }
 
 // --- Self-closing non-void elements become explicit pairs ---
-
-#[derive(Hemplate)]
-struct SelfClosingNonvoid;
-
-#[test]
-fn test_self_closing_div_becomes_open_close() {
-    let html = SelfClosingNonvoid.render().unwrap();
-    // <div/> should render as <div></div>, not <div />
-    assert!(
-        html.contains("<div></div>"),
-        "self-closing <div/> not expanded: {}",
-        html
-    );
-}
-
-#[test]
-fn test_self_closing_span_becomes_open_close() {
-    let html = SelfClosingNonvoid.render().unwrap();
-    assert!(
-        html.contains("<span></span>"),
-        "self-closing <span/> not expanded: {}",
-        html
-    );
-}
-
-#[test]
-fn test_self_closing_p_becomes_open_close() {
-    let html = SelfClosingNonvoid.render().unwrap();
-    assert!(
-        html.contains("<p></p>"),
-        "self-closing <p/> not expanded: {}",
-        html
-    );
-}
 
 // --- Nested enum and struct destructuring ---
 

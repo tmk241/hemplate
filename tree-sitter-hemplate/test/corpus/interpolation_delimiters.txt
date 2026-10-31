@@ -1,0 +1,90 @@
+==================
+Rust comments hide delimiters and brackets, including nested block comments
+==================
+<p>{+ /* { */ 1 +}{+ /* +} =+} } ] ) /* { */ */ 2 +}{+ 3 // +} =+} { ] (
+ + 1 +}{+= /* =+} { /* +} */ */ "<b>raw</b>" =+}</p>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name))
+      (text
+        (interpolation
+          (interpolation_expression))
+        (interpolation
+          (interpolation_expression))
+        (interpolation
+          (interpolation_expression))
+        (raw_interpolation
+          (interpolation_expression)))
+      (end_tag
+        (tag_name)))))
+
+==================
+Quoted attribute interpolation keeps string-internal closing delimiters
+==================
+<p title='{+ "+}" +}'></p>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (ignored_whitespace_segment
+            (ignored_soft_whitespace
+              (space)))
+          (attribute
+            (regular_attribute
+              (attribute_name)
+              (attribute_value
+                (quoted_value
+                  (single_quoted_value
+                    (text
+                      (interpolation
+                        (interpolation_expression))))))))))
+      (end_tag
+        (tag_name)))))
+
+==================
+Quoted attribute interpolation keeps comments with delimiters and brackets
+==================
+<p title='{+ /* { +} /* [ =+} */ */ 8 +}' data-line='{+ 1 // } +} ( [
+ + 2 +}'></p>
+---
+
+(document
+  (element
+    (regular_element
+      (start_tag
+        (tag_name)
+        (attributes
+          (ignored_whitespace_segment
+            (ignored_soft_whitespace
+              (space)))
+          (attribute
+            (regular_attribute
+              (attribute_name)
+              (attribute_value
+                (quoted_value
+                  (single_quoted_value
+                    (text
+                      (interpolation
+                        (interpolation_expression))))))))
+          (ignored_whitespace_segment
+            (ignored_soft_whitespace
+              (space)))
+          (attribute
+            (regular_attribute
+              (attribute_name)
+              (attribute_value
+                (quoted_value
+                  (single_quoted_value
+                    (text
+                      (interpolation
+                        (interpolation_expression))))))))))
+      (end_tag
+        (tag_name)))))

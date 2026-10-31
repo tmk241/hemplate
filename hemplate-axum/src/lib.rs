@@ -14,6 +14,8 @@
 //! blanket impls). The wrapper is the canonical workaround, matching axum's own
 //! `Json` / `Html` / `Form` newtypes.
 
+#![doc = include_str!("../README.md")]
+
 use axum_core::response::{IntoResponse, Response};
 use hemplate_runtime::Hemplate;
 use http::{header, StatusCode};

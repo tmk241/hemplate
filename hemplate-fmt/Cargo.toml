@@ -1,0 +1,13 @@
+[package]
+name = "hemplate-fmt"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+description = "Canonical formatter for Hemplate .heml templates"
+
+[dependencies]
+hemplate-parser = { version = "0.3.0", path = "../hemplate-parser" }
+tree-sitter = "0.25"

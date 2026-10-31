@@ -1,5 +1,6 @@
 //! Stable build-time template surface for downstream tools.
 
+mod rust_split;
 mod types;
 
 use crate::ast::{self, Attribute, Document, Element, HemplateNode, RangeNode, TextSegment};
@@ -60,7 +61,7 @@ impl SurfaceExtractor {
     fn visit_text(&mut self, text: &ast::Text<String>) {
         let text = text_content(text);
         if !text.is_empty() {
-            self.push_node(SurfaceNodeKind::Text { text }, Vec::new());
+            self.push_node(SurfaceNodeKind::Text { text }, Vec::new(), None);
         }
     }
 
@@ -69,8 +70,11 @@ impl SurfaceExtractor {
             Element::RegularElement(element) => {
                 let tag = element.0.hemplate().0.content().to_string();
                 let attrs = surface_attrs(element.0.hemplate().1.as_ref());
-                let node_id =
-                    self.push_node(SurfaceNodeKind::Element { tag: tag.clone() }, attrs.clone());
+                let node_id = self.push_node(
+                    SurfaceNodeKind::Element { tag: tag.clone() },
+                    attrs.clone(),
+                    Some(element.0.range().end_byte),
+                );
                 let scopes = scopes_for_attrs(&attrs);
                 for scope in &scopes {
                     let id = self.push_scope(scope.clone());
@@ -91,12 +95,12 @@ impl SurfaceExtractor {
             Element::SelfClosingElement(element) => {
                 let tag = element.0.content().to_string();
                 let attrs = surface_attrs(element.1.as_ref());
-                self.push_node(SurfaceNodeKind::Element { tag }, attrs);
+                self.push_node(SurfaceNodeKind::Element { tag }, attrs, None);
             }
             Element::VoidElement(element) => {
                 let tag = element.0.hemplate().0.content().to_string();
                 let attrs = surface_attrs(element.0.hemplate().1.as_ref());
-                self.push_node(SurfaceNodeKind::Element { tag }, attrs);
+                self.push_node(SurfaceNodeKind::Element { tag }, attrs, None);
             }
             Element::ScriptElement(element) => {
                 let attrs = surface_attrs(element.0.hemplate().1.as_ref());
@@ -105,6 +109,7 @@ impl SurfaceExtractor {
                         tag: "script".to_string(),
                     },
                     attrs,
+                    None,
                 );
             }
             Element::StyleElement(element) => {
@@ -114,18 +119,25 @@ impl SurfaceExtractor {
                         tag: "style".to_string(),
                     },
                     attrs,
+                    None,
                 );
             }
         }
     }
 
-    fn push_node(&mut self, kind: SurfaceNodeKind, attrs: Vec<SurfaceAttribute>) -> usize {
+    fn push_node(
+        &mut self,
+        kind: SurfaceNodeKind,
+        attrs: Vec<SurfaceAttribute>,
+        content_start: Option<usize>,
+    ) -> usize {
         let id = self.nodes.len();
         self.nodes.push(SurfaceNode {
             id,
             kind,
             attrs,
             scope: self.current_scope(),
+            content_start,
         });
         id
     }
@@ -148,8 +160,9 @@ fn surface_attrs(
         .unwrap_or_default()
 }
 
-fn surface_attr(attr: &RangeNode<String, Attribute<String>>) -> SurfaceAttribute {
-    match attr.hemplate() {
+fn surface_attr(node: &RangeNode<String, Attribute<String>>) -> SurfaceAttribute {
+    let span = node.range().start_byte..node.range().end_byte;
+    match node.hemplate() {
         Attribute::RegularAttribute(attr) => SurfaceAttribute {
             name: clean_attr_name(attr.0.content()),
             value: attr
@@ -157,11 +170,13 @@ fn surface_attr(attr: &RangeNode<String, Attribute<String>>) -> SurfaceAttribute
                 .as_ref()
                 .map(|value| clean_attr_value(value.content())),
             origin: AttributeOrigin::Static,
+            span: span.clone(),
         },
         Attribute::DynamicAttribute(attr) => SurfaceAttribute {
             name: clean_attr_name(attr.0.content()),
             value: Some(clean_attr_value(attr.1.content())),
             origin: AttributeOrigin::Dynamic,
+            span: span.clone(),
         },
         Attribute::TemplateDirective(attr) => SurfaceAttribute {
             name: clean_attr_name(attr.0.content()),
@@ -170,6 +185,7 @@ fn surface_attr(attr: &RangeNode<String, Attribute<String>>) -> SurfaceAttribute
                 .as_ref()
                 .map(|value| clean_attr_value(value.content())),
             origin: AttributeOrigin::Directive,
+            span: span.clone(),
         },
     }
 }
@@ -210,20 +226,19 @@ fn scopes_for_attrs(attrs: &[SurfaceAttribute]) -> Vec<ScopeKind> {
 }
 
 fn parse_for(value: Option<&str>, key_expr: Option<String>) -> Option<ScopeKind> {
-    let (pattern, expr) = value?.split_once(" in ")?;
+    let (pattern, expr) = rust_split::for_value(value?)?;
     Some(ScopeKind::For {
-        pattern: pattern.trim().to_string(),
-        expr: expr.trim().to_string(),
+        pattern: pattern.to_owned(),
+        expr: expr.to_owned(),
         key_expr,
     })
 }
 
 fn parse_if_let(value: Option<&str>) -> Option<ScopeKind> {
-    let after_let = value?.trim().strip_prefix("let ")?;
-    let (pattern, expr) = after_let.split_once(" = ")?;
+    let (pattern, expr) = rust_split::if_let_value(value?)?;
     Some(ScopeKind::IfLet {
-        pattern: pattern.trim().to_string(),
-        expr: expr.trim().to_string(),
+        pattern: pattern.to_owned(),
+        expr: expr.to_owned(),
     })
 }
 

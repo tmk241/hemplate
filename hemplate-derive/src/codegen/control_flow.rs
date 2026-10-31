@@ -3,10 +3,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse::Parser;
 
-use super::{
-    compile_err, gen_element_body_tokens, get_element_directive_info, get_element_directives,
-    push_err, Ctx, Stmt,
-};
+use super::{gen_element_body_tokens, get_element_directive_info, Ctx, Stmt};
 use crate::condense::{is_text_ws_only, should_remove_ws_text};
 
 /// Check whether the element at `idx` starts an `h-if` chain.
@@ -15,8 +12,7 @@ pub(super) fn starts_if_chain(
     idx: usize,
 ) -> bool {
     if let HemplateNode::Element(elem) = children[idx].hemplate() {
-        let dirs = get_element_directives(elem);
-        matches!(dirs.first(), Some((n, _)) if n == "h-if")
+        matches!(get_element_directive_info(elem), Some((n, _)) if n == "h-if")
     } else {
         false
     }
@@ -135,16 +131,13 @@ pub(super) fn gen_if_chain(
             chain_tokens = quote! { #chain_tokens else { #body } };
             continue;
         }
-        let cond_str = condition.as_deref().unwrap_or("true");
-        let keyword = if idx == 0 { "h-if" } else { "h-else-if" };
-        match syn::parse_str::<syn::Expr>(cond_str) {
-            Ok(expr) if idx == 0 => chain_tokens = quote! { if #expr { #body } },
-            Ok(expr) => chain_tokens = quote! { #chain_tokens else if #expr { #body } },
-            Err(e) => {
-                let msg = format!("hemplate: invalid {} `{}`: {}", keyword, cond_str, e);
-                chain_tokens = compile_err(&msg);
-            }
-        }
+        let cond_str = condition.as_deref().expect("validated condition value");
+        let expr: syn::Expr = syn::parse_str(cond_str).expect("validated condition expression");
+        chain_tokens = if idx == 0 {
+            quote! { if #expr { #body } }
+        } else {
+            quote! { #chain_tokens else if #expr { #body } }
+        };
     }
     stmts.push(Stmt::Dynamic(chain_tokens));
     i
@@ -156,39 +149,11 @@ pub(super) fn gen_for_loop(
     elem: &Element<String>,
     for_expr: &str,
 ) {
-    let parts: Vec<&str> = for_expr.splitn(2, " in ").collect();
-    if parts.len() != 2 {
-        let msg = format!(
-            "hemplate: h-for value must be `pattern in expression`, got `{}`",
-            for_expr
-        );
-        push_err(stmts, msg);
-        return;
-    }
-    let pat = match syn::Pat::parse_single.parse_str(parts[0].trim()) {
-        Ok(p) => p,
-        Err(e) => {
-            let msg = format!(
-                "hemplate: invalid pattern in h-for `{}`: {}",
-                parts[0].trim(),
-                e
-            );
-            push_err(stmts, msg);
-            return;
-        }
-    };
-    let iter_expr = match syn::parse_str::<syn::Expr>(parts[1].trim()) {
-        Ok(e) => e,
-        Err(e) => {
-            let msg = format!(
-                "hemplate: invalid iterable in h-for `{}`: {}",
-                parts[1].trim(),
-                e
-            );
-            push_err(stmts, msg);
-            return;
-        }
-    };
+    // Directive validation parsed this same value before any rendering decisions.
+    let super::directives::ForValue {
+        pattern: pat,
+        expression: iter_expr,
+    } = syn::parse_str(for_expr).expect("validated h-for value");
     let body = gen_element_body_tokens(ctx, elem);
     stmts.push(Stmt::Dynamic(quote! {
         for #pat in #iter_expr {
@@ -203,55 +168,25 @@ pub(super) fn gen_match(
     elem: &Element<String>,
     match_expr: &str,
 ) {
-    let expr = match syn::parse_str::<syn::Expr>(match_expr) {
-        Ok(e) => e,
-        Err(e) => {
-            let msg = format!(
-                "hemplate: invalid h-match expression `{}`: {}",
-                match_expr, e
-            );
-            push_err(stmts, msg);
-            return;
-        }
+    let expr: syn::Expr = syn::parse_str(match_expr).expect("validated h-match expression");
+    let Element::RegularElement(element) = elem else {
+        unreachable!("validated h-match host");
     };
-    let children = match elem {
-        Element::RegularElement(re) => &re.1,
-        Element::ScriptElement(_)
-        | Element::SelfClosingElement(_)
-        | Element::StyleElement(_)
-        | Element::VoidElement(_) => {
-            push_err(
-                stmts,
-                "hemplate: h-match must be on <template> or a regular element".into(),
-            );
-            return;
-        }
-    };
+    let children = &element.1;
     let mut arms = Vec::new();
     for child in children {
         if let HemplateNode::Element(child_elem) = child.hemplate() {
             if let Some((ref name, ref val)) = get_element_directive_info(child_elem) {
                 if name == "h-case" {
-                    let pat_str = val.as_deref().unwrap_or("_");
-                    match syn::Pat::parse_multi.parse_str(pat_str) {
-                        Ok(pat) => {
-                            let arm_body = gen_element_body_tokens(ctx, child_elem);
-                            arms.push(quote! { #pat => { #arm_body } });
-                        }
-                        Err(e) => {
-                            let msg =
-                                format!("hemplate: invalid h-case pattern `{}`: {}", pat_str, e);
-                            push_err(stmts, msg);
-                            return;
-                        }
-                    }
+                    let pat_str = val.as_deref().expect("validated h-case value");
+                    let pat = syn::Pat::parse_multi
+                        .parse_str(pat_str)
+                        .expect("validated h-case pattern");
+                    let arm_body = gen_element_body_tokens(ctx, child_elem);
+                    arms.push(quote! { #pat => { #arm_body } });
                 }
             }
         }
-    }
-    if arms.is_empty() {
-        push_err(stmts, "hemplate: h-match has no h-case arms".into());
-        return;
     }
     stmts.push(Stmt::Dynamic(quote! {
         match #expr {

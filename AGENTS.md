@@ -10,9 +10,15 @@ tree-sitter-hemplate -> hemplate-parser -> hemplate-core -> hemplate-derive
 
 Generated templates use the parser-free `hemplate-runtime`. `hemplate` is the
 facade; Axum integration belongs in `hemplate-axum`, not the compiler or runtime.
+`hemplate-fmt` owns the canonical `.heml` layout and its command.
 
 Keep interpolation escaped and context-checked, raw HTML explicit, and errors
-tied to template locations. Preserve ordinary HTML and custom attributes.
+tied to template locations. A template without Hemplate syntax must render
+exactly like the same file served as HTML; malformed markup fails with its
+position. The html5lib conformance test (`html5_conformance`) guards this: a new
+difference is either fixed or listed with a reason in
+`tests/html5lib-tests/accepted.tsv`. The formatter must never change generated
+code (`fmt_equivalence`).
 Update docs and focused tests when syntax, APIs or compatibility change.
 
 ## Checks

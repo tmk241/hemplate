@@ -16,6 +16,29 @@ pub enum HiddenValue<'a> {
     Value(&'a str),
 }
 
+/// A value for a dynamic HTML Boolean attribute such as `+disabled`.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` is not a `bool`, so it cannot decide a Boolean attribute",
+    label = "a Boolean attribute is present for `true` and omitted for `false` or `None`",
+    note = "a string such as `\"false\"` is not false; convert the value to `bool` first"
+)]
+pub trait BooleanAttribute {
+    /// Whether the attribute is present.
+    fn present(&self) -> bool;
+}
+
+impl BooleanAttribute for bool {
+    fn present(&self) -> bool {
+        *self
+    }
+}
+
+impl<T: BooleanAttribute + ?Sized> BooleanAttribute for &T {
+    fn present(&self) -> bool {
+        (**self).present()
+    }
+}
+
 /// A value supported by HTML `+hidden` bindings.
 ///
 /// Booleans toggle presence; strings preserve the enumerated attribute value.

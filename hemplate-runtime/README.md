@@ -5,17 +5,32 @@ Requires Rust 1.91 or newer.
 
 ```toml
 [dependencies]
-hemplate-runtime = "0.3.0"
+hemplate-runtime = "0.4.0"
 ```
 
-When migrating from 0.2, update generated-code consumers and adapters together:
-`hemplate`/`hemplate-derive`/`hemplate-axum` 0.4 use this runtime's 0.3 traits.
-Traits from the previous runtime version are not interchangeable. Whole dynamic
-URLs now use checked `Url` values, and `srcset` uses `Srcset`; other sensitive
-attribute contexts require their matching traits. Typed URL and `srcset` values
-must fill the whole attribute. `Trusted*::new_unchecked` explicitly bypasses
-validation and must not receive untrusted input. Escaping and explicit raw HTML
-semantics remain unchanged.
+This runtime's 0.4 traits are used by `hemplate`, `hemplate-derive`, and
+`hemplate-axum` 0.5. Update generated-code consumers and adapters together:
+traits from different runtime versions are not interchangeable. The [workspace
+compatibility table](../README.md#current-package-compatibility) lists the complete
+current package set.
+
+## Raw HTML and attribute contexts
+
+Raw interpolation `{+= value =+}` accepts only `HtmlValue` types such as
+`TrustedHtml`; plain `String` and `&str` values do not compile there. This is a
+breaking change in runtime 0.4 (facade 0.5). Use escaped `{+ text +}` for text
+and `{+ child +}` for a `Hemplate` component. Raw interpolation rejects
+`Hemplate` components, even if they also implement `HtmlValue`.
+`TrustedHtml::new_unchecked(markup)` performs no validation: use it only where
+the application vouches for already-produced HTML, or implement `HtmlValue`
+for a sanitizer's safe output type. Raw output is forbidden in attributes.
+
+Whole dynamic URLs use checked `Url` values, and `srcset` uses `Srcset`; other
+sensitive attribute contexts require their matching traits. Typed URL and
+`srcset` values must fill the whole attribute. `Trusted*::new_unchecked`
+explicitly bypasses validation and must not receive untrusted input.
+
+## Runtime API
 
 This crate contains only the symbols needed at render time on a target device:
 the `Hemplate` trait, the `RenderError` type, `HtmlEscape`, and the `render`

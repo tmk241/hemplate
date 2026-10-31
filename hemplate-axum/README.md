@@ -4,13 +4,14 @@ Axum response wrappers for Hemplate views. Requires Rust 1.91 or newer.
 
 ```toml
 [dependencies]
-hemplate = "0.4.0"
-hemplate-axum = "0.4.0"
+hemplate = "0.5.0"
+hemplate-axum = "0.5.0"
 ```
 
-When migrating from 0.3, update the facade and adapter together: both must use
-`hemplate-runtime` 0.3 so their `Hemplate` traits agree. Response behavior is
-unchanged; templates now enforce the facade's strict attribute contexts.
+Use `hemplate` and `hemplate-axum` 0.5 together; both use
+`hemplate-runtime` 0.4 so their `Hemplate` traits agree. Runtime traits from
+different versions are not interchangeable. The [workspace compatibility
+table](../README.md#current-package-compatibility) lists the complete package set.
 
 ```rust
 use hemplate::{Hemplate, RenderError};
@@ -19,13 +20,15 @@ use hemplate_axum::{HemplateExt, HtmlTemplate};
 struct HomePage;
 
 impl Hemplate for HomePage {
-    fn render_into(&self, output: &mut String) -> Result<(), RenderError> {
-        output.push_str("<h1>Home</h1>");
+    fn render_into(&self, output: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
+        output.write_str("<h1>Home</h1>")?;
         Ok(())
     }
 }
 
+assert_eq!(HomePage.render()?, "<h1>Home</h1>");
 let response: HtmlTemplate<HomePage> = HomePage.into_html();
+# Ok::<(), RenderError>(())
 ```
 
 The crate provides:

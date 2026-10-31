@@ -1,0 +1,1 @@
+<a +href="self.link" +data-source="self.source" +title="self.title">read</a><input +disabled="self.off" +hidden="self.hide">

@@ -4,7 +4,7 @@ Tree-sitter parser wrapper for Hemplate templates. Requires Rust 1.91 or newer.
 
 ```toml
 [dependencies]
-hemplate-parser = "0.2.0"
+hemplate-parser = "0.3.0"
 ```
 
 When migrating from 0.1, pair this with `tree-sitter-hemplate` 0.2 and

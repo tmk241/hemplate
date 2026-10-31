@@ -9,6 +9,7 @@
 //! call sites.
 
 use crate::Hemplate;
+use crate::context::HtmlValue;
 use crate::error::RenderError;
 use crate::escape::HtmlEscape;
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
@@ -27,11 +28,23 @@ impl fmt::Write for RenderBuffer<'_> {
 // ---------------------------------------------------------------------------
 
 /// Wrapper emitted by codegen for `{+ expr +}`.
+///
+/// `L` is a marker type named after the template position. A value that is
+/// neither `Hemplate` nor `Display` fails with an error that prints this type,
+/// so the message names the template file, line and column.
 #[doc(hidden)]
-pub struct Escaped<'a, T: ?Sized>(pub &'a T);
+pub struct Escaped<'a, T: ?Sized, L = ()>(pub &'a T, pub core::marker::PhantomData<L>);
+
+impl<'a, T: ?Sized> Escaped<'a, T> {
+    /// Wrap a value without a position marker.
+    #[doc(hidden)]
+    pub fn new(value: &'a T) -> Self {
+        Self(value, core::marker::PhantomData)
+    }
+}
 
 // Priority 1 (inherent): Hemplate types render directly — output is safe HTML.
-impl<T: Hemplate + ?Sized> Escaped<'_, T> {
+impl<T: Hemplate + ?Sized, L> Escaped<'_, T, L> {
     /// Render a Hemplate component into the buffer (no escaping).
     #[doc(hidden)]
     pub fn render_to(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
@@ -47,7 +60,7 @@ pub trait EscapedFallback {
 }
 
 // Priority 2 (trait): Display types get HTML-escaped.
-impl<T: fmt::Display + ?Sized> EscapedFallback for Escaped<'_, T> {
+impl<T: fmt::Display + ?Sized, L> EscapedFallback for Escaped<'_, T, L> {
     fn render_to(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
         use fmt::Write as _;
         write!(RenderBuffer(buf), "{}", HtmlEscape(self.0))?;
@@ -59,74 +72,80 @@ impl<T: fmt::Display + ?Sized> EscapedFallback for Escaped<'_, T> {
 // Raw interpolation: {+= expr =+}
 // ---------------------------------------------------------------------------
 
-/// Wrapper emitted by codegen for `{+= expr =+}`.
+/// Wrapper emitted by codegen for a whole dynamic attribute `+name="expr"`.
+///
+/// `get` yields the value to render, or `None` to omit the attribute: an
+/// `Option` gives its content, every other value is always present.
 #[doc(hidden)]
-pub struct Raw<'a, T: ?Sized>(pub &'a T);
+pub struct Present<'a, T: ?Sized>(pub &'a T);
 
-// Priority 1 (inherent): Hemplate types should NOT use raw interpolation.
-// The autoref dispatch means `{+ +}` already calls `render_into` for
-// Hemplate types.  Using `{+= =+}` with a Hemplate type is always a
-// mistake — it bypasses the safe dispatch for no benefit.
-impl<T: Hemplate + ?Sized> Raw<'_, T> {
-    /// Compile-time guard: raw interpolation is not allowed for Hemplate types.
+// Priority 1 (inherent): an `Option` attribute is present only when `Some`.
+impl<'a, T> Present<'a, Option<T>> {
     #[doc(hidden)]
-    pub fn render_to(&self, _buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
-        panic!(
-            "hemplate: raw interpolation must not be used with Hemplate types. \
-             Use escaped interpolation instead. \
-             This should have been caught at compile time via RawGuard."
-        );
+    pub fn get(&self) -> Option<&'a T> {
+        self.0.as_ref()
     }
 }
 
-/// Fallback for `Display` types in raw context.
+/// Fallback for every non-`Option` value: always present.
 #[doc(hidden)]
-pub trait RawFallback {
-    /// Render a Display value into the buffer without escaping.
-    fn render_to(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError>;
+pub trait PresentFallback<'a, T: ?Sized> {
+    fn get(&self) -> Option<&'a T>;
 }
 
-// Priority 2 (trait): Display types output verbatim (no escaping).
-impl<T: fmt::Display + ?Sized> RawFallback for Raw<'_, T> {
-    fn render_to(&self, buf: &mut dyn core::fmt::Write) -> Result<(), RenderError> {
-        use fmt::Write as _;
-        write!(RenderBuffer(buf), "{}", self.0)?;
-        Ok(())
+impl<'a, T: ?Sized> PresentFallback<'a, T> for Present<'a, T> {
+    fn get(&self) -> Option<&'a T> {
+        Some(self.0)
     }
 }
 
-// ---------------------------------------------------------------------------
-// Raw interpolation guard: compile error for Hemplate types in {+= =+}
-// ---------------------------------------------------------------------------
-
-/// Emitted by codegen before `Raw::render_to` to catch Hemplate types at
-/// compile time.  The inherent impl returns a distinct type that fails the
-/// `let _: () = ...` assignment, producing a clear type-mismatch error
-/// whose type name IS the error message.
+/// Emitted by codegen before raw output to reject components at compile time.
+///
+/// For a `Hemplate` type the inherent `check` returns
+/// [`RawInterpolationNotAllowedForHemplateTypes`], which fails the generated
+/// `let _: () = ..` binding; its type name is the error message. Components
+/// render with `{+ child +}`, never pre-rendered into raw output.
+///
+/// `L` is a marker named after the template position; it appears in that
+/// type name, so the error also says where the raw interpolation is.
 #[doc(hidden)]
-pub struct RawGuard<'a, T: ?Sized>(pub &'a T);
+pub struct RawGuard<'a, T: ?Sized, L = ()>(pub &'a T, pub core::marker::PhantomData<L>);
 
 /// Appears in the compiler error when `{+= =+}` is used with a Hemplate type.
 #[doc(hidden)]
-pub struct RawInterpolationNotAllowedForHemplateTypes;
+pub struct RawInterpolationNotAllowedForHemplateTypes<L = ()>(core::marker::PhantomData<L>);
 
-// Priority 1 (inherent): Hemplate types → return the "error message" type.
-impl<T: Hemplate + ?Sized> RawGuard<'_, T> {
+impl<T: Hemplate + ?Sized, L> RawGuard<'_, T, L> {
     #[doc(hidden)]
-    pub fn check(&self) -> RawInterpolationNotAllowedForHemplateTypes {
-        RawInterpolationNotAllowedForHemplateTypes
+    pub fn check(&self) -> RawInterpolationNotAllowedForHemplateTypes<L> {
+        RawInterpolationNotAllowedForHemplateTypes(core::marker::PhantomData)
     }
 }
 
-/// Fallback: Display types pass the guard (no-op).
+/// Fallback: every non-component value passes the guard.
 #[doc(hidden)]
 pub trait RawGuardFallback {
     fn check(&self);
 }
 
-impl<T: fmt::Display + ?Sized> RawGuardFallback for RawGuard<'_, T> {
+impl<T: ?Sized, L> RawGuardFallback for RawGuard<'_, T, L> {
     #[inline(always)]
     fn check(&self) {}
+}
+
+/// Called by codegen for `{+= expr =+}`: insert trusted markup unescaped.
+///
+/// The [`HtmlValue`] bound is the whole check. Hemplate components, strings and
+/// other plain `Display` values do not implement it, so a mistake fails to
+/// compile at this call with the trait's explanation.
+#[doc(hidden)]
+pub fn render_raw<T: HtmlValue + ?Sized>(
+    value: &T,
+    buf: &mut dyn core::fmt::Write,
+) -> Result<(), RenderError> {
+    use fmt::Write as _;
+    write!(RenderBuffer(buf), "{value}")?;
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -236,7 +255,7 @@ mod tests {
     fn escaped_hemplate_renders_directly() -> Result<(), RenderError> {
         let comp = TestComponent("hello".into());
         let mut buf = String::new();
-        Escaped(&comp).render_to(&mut buf)?;
+        Escaped::new(&comp).render_to(&mut buf)?;
         assert_eq!(buf, "<b>hello</b>");
         Ok(())
     }
@@ -245,46 +264,15 @@ mod tests {
     fn escaped_display_html_escapes() -> Result<(), RenderError> {
         let text = "<script>alert('xss')</script>";
         let mut buf = String::new();
-        EscapedFallback::render_to(&Escaped(text), &mut buf)?;
+        EscapedFallback::render_to(&Escaped::new(text), &mut buf)?;
         assert_eq!(buf, "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;");
         Ok(())
     }
 
     #[test]
-    #[should_panic(expected = "must not be used with Hemplate types")]
-    fn raw_hemplate_panics() {
-        let comp = TestComponent("world".into());
+    fn raw_trusted_html_is_not_escaped() -> Result<(), RenderError> {
         let mut buf = String::new();
-        let _ = Raw(&comp).render_to(&mut buf);
-    }
-
-    #[test]
-    fn raw_guard_hemplate_returns_marker_type() {
-        let comp = TestComponent("test".into());
-        // Inherent impl is selected for Hemplate types, returning the marker type.
-        // In codegen, `let _: () = RawGuard(&expr).check()` causes a type mismatch
-        // that prevents compilation of {+= =+} with Hemplate types.
-        let _marker = RawGuard(&comp).check();
-        // If this compiles, the inherent impl was selected (returns marker, not ()).
-        assert_eq!(
-            core::any::type_name_of_val(&_marker),
-            core::any::type_name::<RawInterpolationNotAllowedForHemplateTypes>()
-        );
-    }
-
-    #[test]
-    fn raw_guard_display_is_noop() {
-        let text = "hello";
-        // Trait fallback is selected for Display-only types, returning ().
-        let result: () = RawGuardFallback::check(&RawGuard(text));
-        assert_eq!(result, ());
-    }
-
-    #[test]
-    fn raw_display_no_escaping() -> Result<(), RenderError> {
-        let text = "<b>bold</b>";
-        let mut buf = String::new();
-        RawFallback::render_to(&Raw(text), &mut buf)?;
+        render_raw(&crate::TrustedHtml::new_unchecked("<b>bold</b>"), &mut buf)?;
         assert_eq!(buf, "<b>bold</b>");
         Ok(())
     }
@@ -292,9 +280,7 @@ mod tests {
     #[test]
     fn interpolation_fallbacks_propagate_display_failure() {
         let mut escaped = String::new();
-        assert!(EscapedFallback::render_to(&Escaped(&FailingDisplay), &mut escaped).is_err());
-        let mut raw = String::new();
-        assert!(RawFallback::render_to(&Raw(&FailingDisplay), &mut raw).is_err());
+        assert!(EscapedFallback::render_to(&Escaped::new(&FailingDisplay), &mut escaped).is_err());
     }
 
     // Blanket Hemplate impls preserve child render order and emptiness.

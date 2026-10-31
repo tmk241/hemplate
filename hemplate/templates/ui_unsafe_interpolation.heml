@@ -1,0 +1,1 @@
+<p>{+ unsafe { self.value.get_unchecked(0..1) } +}</p>

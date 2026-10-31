@@ -36,9 +36,9 @@ fn preserves_inline_space() {
 struct WsPre;
 
 #[test]
-fn strips_only_the_first_pre_newline() {
+fn preserves_the_first_pre_newline_for_the_browser() {
     let html = WsPre.render().unwrap();
-    assert_eq!(html, "<pre>  hello\n  world\n</pre>");
+    assert_eq!(html, "<pre>\n  hello\n  world\n</pre>");
 }
 
 #[derive(Hemplate)]

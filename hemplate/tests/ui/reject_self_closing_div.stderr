@@ -1,0 +1,7 @@
+error: templates/ui_self_closing_div.heml:1:11: hemplate: `<div/>` does not close in HTML; the browser would put everything after it inside; write `<div></div>`
+ --> tests/ui/reject_self_closing_div.rs:4:10
+  |
+4 | #[derive(Hemplate)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
