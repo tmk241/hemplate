@@ -4,7 +4,7 @@ error[E0277]: a Hemplate component cannot be inserted as raw output `{+= .. =+}`
 6 | #[derive(Hemplate)]
   |          ^^^^^^^^ a component renders itself; raw output would insert it as unchecked markup
   |
-  = help: the trait `RawOutputAllowed` is not implemented for `RawComponent`
+  = help: the trait `<UiRawComponent as Hemplate>::render_into::RawOutputAllowed` is not implemented for `RawComponent`
   = note: compose it with escaped interpolation: `{+ child +}`
 note: required by a bound in `__hemplate_raw_component_at_ui_raw_component_heml_line_1_col_8`
  --> tests/ui/fail_raw_component.rs:6:10
@@ -31,4 +31,19 @@ note: required by a bound in `__hemplate_raw_html_at_ui_raw_component_heml_line_
   |
 6 | #[derive(Hemplate)]
   |          ^^^^^^^^ required by this bound in `__hemplate_raw_html_at_ui_raw_component_heml_line_1_col_8`
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: a Hemplate component cannot be inserted as raw output `{+= .. =+}`
+ --> tests/ui/fail_raw_component.rs:6:10
+  |
+6 | #[derive(Hemplate)]
+  |          ^^^^^^^^ a component renders itself; raw output would insert it as unchecked markup
+  |
+  = help: the trait `<UiRawComponent as Hemplate>::render_into::RawOutputAllowed` is not implemented for `RawComponent`
+  = note: compose it with escaped interpolation: `{+ child +}`
+note: required by a bound in `__hemplate_raw_component_at_ui_raw_component_heml_line_1_col_35`
+ --> tests/ui/fail_raw_component.rs:6:10
+  |
+6 | #[derive(Hemplate)]
+  |          ^^^^^^^^ required by this bound in `__hemplate_raw_component_at_ui_raw_component_heml_line_1_col_35`
   = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)

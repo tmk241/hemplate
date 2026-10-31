@@ -97,10 +97,27 @@ pub(crate) fn raw_value(
         ) -> ::core::result::Result<(), ::hemplate::__runtime::error::RenderError> {
             ::hemplate::__runtime::render::render_raw(value, buf)
         }
+        // Declared here rather than in the runtime, so this derive works with
+        // every hemplate-runtime 0.4: for a component the runtime's guard
+        // yields a type other than `()`, which fails this bound.
+        #[diagnostic::on_unimplemented(
+            message = "a Hemplate component cannot be inserted as raw output `{{+= .. =+}}`",
+            label = "a component renders itself; raw output would insert it as unchecked markup",
+            note = "compose it with escaped interpolation: `{{+ child +}}`"
+        )]
+        trait RawOutputAllowed {}
+        #[diagnostic::do_not_recommend]
+        impl RawOutputAllowed for () {}
         #[allow(non_snake_case)]
-        fn #guard<G: ::hemplate::__runtime::render::RawOutputAllowed>(_: G) {}
+        fn #guard<G: RawOutputAllowed>(_: G) {}
         let __hemplate_raw = &(#expr);
-        #guard(::hemplate::__runtime::render::RawGuard(__hemplate_raw).check());
+        #guard(
+            ::hemplate::__runtime::render::RawGuard::<_, ()>(
+                __hemplate_raw,
+                ::core::marker::PhantomData,
+            )
+            .check(),
+        );
         #site(__hemplate_raw, buf)?;
     }}
 }

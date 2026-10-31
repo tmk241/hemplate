@@ -193,6 +193,16 @@ fn empty_dynamic_attr_name_is_rejected_before_codegen() {
 }
 
 #[test]
+fn interpolation_inside_a_dynamic_attribute_names_both_correct_forms() {
+    let heml = r#"<p +data-x="{+ self.title +}">x</p>"#;
+    assert_compile_error(
+        heml,
+        "a +attribute value is a Rust expression without {+ +}",
+    );
+    assert_compile_error(heml, "self.title +}");
+}
+
+#[test]
 fn attr_interp_basic_codegen() {
     assert_no_compile_error(r#"<a href="/users/{+ self.id +}/edit">link</a>"#);
 }

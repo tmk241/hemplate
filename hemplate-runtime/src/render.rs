@@ -102,17 +102,21 @@ impl<'a, T: ?Sized> PresentFallback<'a, T> for Present<'a, T> {
 /// Emitted by codegen before raw output to reject components at compile time.
 ///
 /// For a `Hemplate` type the inherent `check` returns [`RawComponent`], which
-/// fails the generated [`RawOutputAllowed`] bound with that trait's message;
-/// every other value returns `()`. Components render with `{+ child +}`, never
+/// fails the bound the derive places on the result; every other value returns
+/// `()`. Components render with `{+ child +}`, never
 /// pre-rendered into raw output.
+///
+/// `L` and the second field keep the shape that hemplate-derive 0.5.0 emits
+/// (`let _: () = RawGuard::<_, L>(value, PhantomData).check()`), so that
+/// derive still compiles against this runtime and still rejects components.
 #[doc(hidden)]
-pub struct RawGuard<'a, T: ?Sized>(pub &'a T);
+pub struct RawGuard<'a, T: ?Sized, L = ()>(pub &'a T, pub core::marker::PhantomData<L>);
 
-/// What the raw-output guard yields for a Hemplate component; it never
-/// satisfies [`RawOutputAllowed`], so `{+= component =+}` does not compile.
+/// What the raw-output guard yields for a Hemplate component; the derive only
+/// accepts `()` there, so `{+= component =+}` does not compile.
 pub struct RawComponent;
 
-impl<T: Hemplate + ?Sized> RawGuard<'_, T> {
+impl<T: Hemplate + ?Sized, L> RawGuard<'_, T, L> {
     #[doc(hidden)]
     pub fn check(&self) -> RawComponent {
         RawComponent
@@ -125,21 +129,10 @@ pub trait RawGuardFallback {
     fn check(&self);
 }
 
-impl<T: ?Sized> RawGuardFallback for RawGuard<'_, T> {
+impl<T: ?Sized, L> RawGuardFallback for RawGuard<'_, T, L> {
     #[inline(always)]
     fn check(&self) {}
 }
-
-/// Satisfied only by what the raw-output guard returns for non-components.
-#[diagnostic::on_unimplemented(
-    message = "a Hemplate component cannot be inserted as raw output `{{+= .. =+}}`",
-    label = "a component renders itself; raw output would insert it as unchecked markup",
-    note = "compose it with escaped interpolation: `{{+ child +}}`"
-)]
-pub trait RawOutputAllowed {}
-
-#[diagnostic::do_not_recommend]
-impl RawOutputAllowed for () {}
 
 /// Called by codegen for `{+= expr =+}`: insert trusted markup unescaped.
 ///

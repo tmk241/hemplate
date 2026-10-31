@@ -393,7 +393,19 @@ fn gen_dynamic_attr(
             }
         }
         Err(e) => {
-            let msg = format!("hemplate: invalid expression in +{}: {}", attr_name, e);
+            let mut msg = format!("hemplate: invalid expression in +{}: {}", attr_name, e);
+            // A dynamic attribute's value is already Rust; `{+ +}` belongs to
+            // the plain attribute form.
+            if let Some(inner) = expr_str
+                .trim()
+                .strip_prefix("{+")
+                .and_then(|rest| rest.strip_suffix("+}"))
+            {
+                let inner = inner.trim();
+                msg.push_str(&format!(
+                    "; a +attribute value is a Rust expression without {{+ +}}: write +{attr_name}=\"{inner}\" or {attr_name}=\"{{+ {inner} +}}\""
+                ));
+            }
             source_error(template_path, &da.1, &msg)
         }
     }
