@@ -7,12 +7,10 @@
 fn compile_fail() {
     // trybuild creates a synthetic package, so its derives need the same
     // on-disk template fixtures as a normal downstream package.
-    let executable = std::env::current_exe().unwrap();
-    let target = executable
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
+    // trybuild builds under `<target dir>/tests/trybuild`; Cargo names the
+    // target dir for integration tests as `<target dir>/tmp`, wherever this
+    // test executable itself lives.
+    let target = std::path::Path::new(env!("CARGO_TARGET_TMPDIR"))
         .parent()
         .unwrap();
     let templates = target.join("tests/trybuild/hemplate/templates");
