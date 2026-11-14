@@ -39,7 +39,10 @@ pub enum ControlKind {
     /// Textarea control.
     TextArea,
     /// File input.
-    File,
+    File {
+        /// Whether the input has a `multiple` attribute.
+        multiple: bool,
+    },
     /// Hidden input.
     Hidden,
     /// Submit input.

@@ -4,7 +4,7 @@ Compile-time HTML templates for Rust. Requires Rust 1.91 or newer.
 
 ```toml
 [dependencies]
-hemplate = "0.5.0"
+hemplate = "0.6.0"
 ```
 
 Applications normally use `#[derive(Hemplate)]` with a matching `.heml` file under their package's `templates/` directory:
@@ -34,50 +34,15 @@ The default features provide derive support and host-side AST APIs. A constraine
 
 ```toml
 [dependencies]
-hemplate = { version = "0.5.0", default-features = false, features = ["derive"] }
+hemplate = { version = "0.6.0", default-features = false, features = ["derive"] }
 ```
 
 Generated code continues to use the normal `hemplate` facade path.
 
-## Current compatibility
+## Versions
 
-Use the [workspace compatibility table](../README.md#current-package-compatibility)
-when updating related packages. Generated code and adapters must share the same
-runtime trait version.
-
-## Migrating from 0.4 to 0.5
-
-Interpolations hold ordinary Rust expressions: multi-line calls with trailing
-commas, struct literals, blocks and macros compile. `?`, `return`, `.await`, and
-`break`/`continue` aimed at a template loop now fail with a template diagnostic
-instead of corrupting or truncating output; prepare such values before
-rendering. `unsafe` is rejected in interpolations. A dynamic attribute holds any
-expression without its own quote. Raw `{+= x =+}` now requires an `HtmlValue`
-such as `hemplate::TrustedHtml`: replace `{+= s.as_str() =+}` by `{+ child +}`
-for components, `{+ s +}` for text, or wrap markup you vouch for in
-`TrustedHtml::new_unchecked(..)` where it is produced. Self-closing void
-elements (`<br/>`, `<input .. />`) now render without an end tag.
-Integrations may supply build-time static markup transforms (`hemplate-core`
-`transform`). Tools reading the Tree-sitter tree see one opaque
-`interpolation_expression` node instead of the former expression subtree.
-
-## Historical migration: 0.3 to 0.4
-
-These notes describe the older 0.4 release, not the current compatible package
-set. Strict attribute contexts reject plain strings where HTML escaping alone
-cannot prevent code execution. Parse whole dynamic URL values with
-`hemplate::Url::parse` and handle errors, or use a fixed relative prefix such as
-`href="/users/{+ id +}"`. A typed URL or `Srcset` must fill the whole attribute;
-assemble it before interpolation. Move dynamic handler/style data into `data-*`
-attributes and classes. Resource, document, navigation and animation contexts
-require their own context traits, not just a checked `Url`. Explicit `Trusted*`
-values bypass validation and are only for data the application has established
-as trusted; raw output remains forbidden in attributes.
-
-Update direct dependencies together: `hemplate-derive` and `hemplate-axum` use
-0.4, `hemplate-runtime` and `hemplate-core` use 0.3, and `hemplate-parser` and
-`tree-sitter-hemplate` use 0.2. Generated code and adapters must share the same
-runtime trait version. The minimum supported Rust version remains 1.91.
+Every Hemplate package is released under one version and pins the others
+exactly; update them together.
 
 ## Dynamic Boolean attributes
 

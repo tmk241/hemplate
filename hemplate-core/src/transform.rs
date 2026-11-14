@@ -3,7 +3,7 @@
 //! An integration's build script may know facts that belong in rendered
 //! markup but not in the authored template (for example generated
 //! identifiers). It writes one transform per template below the directory
-//! named by [`DIR_ENV`] (set with `cargo:rustc-env`). The derive macro still
+//! named by [`DIR_ENV`](crate::transform::DIR_ENV) (set with `cargo:rustc-env`). The derive macro still
 //! parses the original template, so every diagnostic keeps its original
 //! position; it only substitutes static markup at the addressed places:
 //!

@@ -214,6 +214,8 @@ mod tests {
             "async { f().await }",
             "match self.x { Some(v) => v, None => 0 }",
         ] {
+            // Flow owned by the expression's own closures, loops and async
+            // blocks does not leave rendering.
             assert!(parse(text).is_ok(), "{text}: {:?}", parse(text).err());
         }
     }

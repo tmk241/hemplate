@@ -28,8 +28,24 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - run: cargo test --workspace --all-targets --all-features
+      - run: cargo doc --workspace --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: -D warnings
       - run: cargo check -p hemplate-wasm-runtime-test --target wasm32-unknown-unknown
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check
           command-arguments: licenses sources
+  # The checked-in parser must be exactly what grammar.js generates, and the
+  # grammar corpus must pass; cargo test only builds the generated parser.
+  grammar:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tree-sitter-hemplate
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install --global tree-sitter-cli@0.26.9
+      - run: tree-sitter generate
+      - run: git diff --exit-code -- src
+      - run: tree-sitter test

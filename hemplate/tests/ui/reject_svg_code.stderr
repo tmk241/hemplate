@@ -1,0 +1,23 @@
+error: templates/ui_svg_script.heml:1:14: hemplate: an SVG or MathML `<script>` runs its text as JavaScript, which no escaping makes safe; write its content as static text and pass data through attributes the code reads
+ --> tests/ui/reject_svg_code.rs:4:10
+  |
+4 | #[derive(Hemplate)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: templates/ui_svg_style.heml:1:13: hemplate: an SVG or MathML `<style>` runs its text as CSS, which no escaping makes safe; write its content as static text and pass data through attributes the code reads
+ --> tests/ui/reject_svg_code.rs:9:10
+  |
+9 | #[derive(Hemplate)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: templates/ui_svg_match_script.heml:1:47: hemplate: an SVG or MathML `<script>` runs its text as JavaScript, which no escaping makes safe; write its content as static text and pass data through attributes the code reads
+  --> tests/ui/reject_svg_code.rs:15:10
+   |
+15 | #[derive(Hemplate)]
+   |          ^^^^^^^^
+   |
+   = note: this error originates in the derive macro `Hemplate` (in Nightly builds, run with -Z macro-backtrace for more info)

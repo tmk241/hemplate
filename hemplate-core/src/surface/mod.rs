@@ -318,7 +318,12 @@ fn control_kind(tag: &str, attrs: &[SurfaceAttribute]) -> ControlKind {
         "select" => ControlKind::Select {
             multiple: attrs.iter().any(|attr| attr.name == "multiple"),
         },
-        "input" => match attr_value(attrs, "type").unwrap_or("text") {
+        // Input type keywords are ASCII case-insensitive in HTML.
+        "input" => match attr_value(attrs, "type")
+            .unwrap_or("text")
+            .to_ascii_lowercase()
+            .as_str()
+        {
             "text" => ControlKind::Text,
             "number" => ControlKind::Number {
                 min: attr_value(attrs, "min").map(ToOwned::to_owned),
@@ -327,12 +332,14 @@ fn control_kind(tag: &str, attrs: &[SurfaceAttribute]) -> ControlKind {
             },
             "checkbox" => ControlKind::Checkbox,
             "radio" => ControlKind::Radio,
-            "file" => ControlKind::File,
+            "file" => ControlKind::File {
+                multiple: attrs.iter().any(|attr| attr.name == "multiple"),
+            },
             "hidden" => ControlKind::Hidden,
             "submit" => ControlKind::Submit,
             other => ControlKind::Other {
                 tag: tag.to_string(),
-                input_type: Some(other.to_string()),
+                input_type: Some(other.to_owned()),
             },
         },
         other => ControlKind::Other {

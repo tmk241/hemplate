@@ -8,7 +8,7 @@ Add Hemplate to your project (Rust 1.91 or newer):
 
 ```toml
 [dependencies]
-hemplate = "0.5.0"
+hemplate = "0.6.0"
 ```
 
 Define a view:
@@ -40,6 +40,7 @@ In element content, `{+ ... +}` HTML-escapes ordinary `Display` values such as
 strings, but renders `Hemplate` values directly as nested components. Use
 `{+= ... =+}` only for already-produced, explicitly trusted HTML. It accepts
 only `HtmlValue` types and writes them without escaping:
+
 
 ```rust
 // A plain String or &str does not compile in {+= =+}: it could hold a <script>.
@@ -92,6 +93,12 @@ still support escaped `{+ expression +}` interpolation. In contrast, `script`
 and `style` bodies are verbatim raw text: interpolation-looking syntax there is
 literal, not Rust. Pass dynamic data through escaped attributes instead.
 
+Inside `<svg>` (and MathML), `script` and `style` are parsed as ordinary
+elements, yet the browser still runs an SVG script's text as JavaScript and an
+SVG style's text as CSS. No escaping makes an interpolated value safe there, so
+an interpolation, raw output, component or element inside them is a compile
+error; write their content as static text.
+
 ## Formatting
 
 Use `hemplate-fmt templates` to format `.heml` files recursively, or
@@ -106,6 +113,7 @@ are left unchanged with `file:line:column` diagnostics. Formatting preserves
 Hemplate's rendered output. See [hemplate-fmt](hemplate-fmt/README.md).
 
 ## Compose components
+
 
 Define child views just like the outer view:
 
@@ -165,7 +173,8 @@ Hemplate supports:
 
 - escaped and trusted-raw Rust expressions;
 - `h-if`, `h-else-if`, and `h-else` branches;
-- `h-for` loops and `h-match`/`h-case` pattern matching;
+- `h-for` loops and `h-match`/`h-case` pattern matching (`h-match` sits on a
+  `<template>`; only the matching case renders);
 - computed attributes written as `+name="expression"`;
 - reusable template types through the `Hemplate` trait;
 - ordinary HTML and client-side attributes without special handling.
@@ -173,6 +182,7 @@ Hemplate supports:
 See the crate documentation and tests for the complete supported behavior.
 
 ### Expressions are Rust
+
 
 Only the delimiters are template syntax. `{+ ... +}` and `{+= ... =+}` hold any
 expression Rust itself accepts, including rustfmt-style multi-line calls with a
@@ -187,6 +197,7 @@ trailing comma, struct literals, blocks, closures and macros:
 
 An interpolation ends at the first closing delimiter outside Rust string or
 char literals and balanced brackets, so `"a +} b"` inside a string is fine.
+
 
 For parser recovery, Tree-sitter keeps an incomplete `{+` as literal text rather
 than an interpolation node. That does **not** make it a compilable template:
@@ -205,6 +216,7 @@ not contain its enclosing quote; use the other quote for string literals, for
 example `+title='format!("{} items", self.count)'`.
 
 ## Untrusted values and attribute contexts
+
 
 Escaping makes a value safe as *text*. Some attributes are read a second time as
 another language, after the browser has decoded them: `on*` as JavaScript, `style`
@@ -268,6 +280,7 @@ attribute values.
 
 ### Where errors point
 
+
 Hemplate's own checks (syntax, directives, early exits, `unsafe`) report
 `templates/<file>.heml:<line>:<column>`. When a value's type does not fit its
 place (not `Display` text, not `HtmlValue` raw HTML, not the attribute's context
@@ -288,80 +301,23 @@ second, for example
 That blocks inline handlers and `javascript:` URLs even where a mistake slips
 through.
 
-## Current package compatibility
+## Versions
 
-Update related packages together using this compatible set. Generated code,
-applications, and adapters must share the same `hemplate-runtime` trait version;
-traits from different runtime versions are not interchangeable. All packages
+Every Hemplate package (`hemplate`, `hemplate-derive`, `hemplate-runtime`,
+`hemplate-core`, `hemplate-parser`, `hemplate-fmt`, `hemplate-axum`,
+`tree-sitter-hemplate`) is released under one version and pins the others
+exactly, so generated code always meets the runtime it was written for. There
+is no compatibility across releases: update them together. All packages
 require Rust **1.91** or newer.
 
-| Package | Current compatible version |
-| --- | --- |
-| `hemplate` | 0.5 |
-| `hemplate-derive` | 0.5 |
-| `hemplate-core` | 0.4 |
-| `hemplate-runtime` | 0.4 |
-| `hemplate-axum` | 0.5 |
-| `hemplate-parser` | 0.3 |
-| `tree-sitter-hemplate` | 0.3 |
+## Changes in 0.6
 
-## Migrating from 0.4 to 0.5
-
-Use the current compatible package set above.
-
-- Interpolation and dynamic attribute expressions are ordinary Rust (see
-  "Expressions are Rust"). Expressions that leave rendering early, and `unsafe`,
-  now fail with a template diagnostic; prepare fallible or asynchronous values first.
-- Raw `{+= x =+}` accepts only `HtmlValue` types such as `TrustedHtml`. A
-  `String` or `&str` no longer compiles there: use `{+ child +}` for components,
-  `{+ text +}` for text, or `TrustedHtml::new_unchecked(..)` at the place where
-  the markup is produced and vouched for. Type errors in interpolations now name
-  the template file, line and column.
-- `<div/>` and other self-closing non-void HTML elements are now a build error
-  (the browser would not close them); write `<div></div>`. Malformed markup also
-  fails with its position instead of rendering partially.
-- `<br/>`, `<input .. />` and other self-closing void elements render without an
-  end tag; `<br/>` previously produced `<br></br>`, which browsers read as two
-  line breaks.
-- A template that cannot parse reports one diagnostic, without follow-on
-  missing `render` errors at its call sites.
-- Tree-sitter consumers see an opaque `interpolation_expression`; highlight it
-  through the Rust injection in `injections.scm`.
-- `hemplate-core` surface attributes carry source spans and elements their
-  content start; `transform` lets a build script add static markup at compile
-  time. Without a configured transform, output is unchanged.
-
-## Historical migration: 0.3 to 0.4
-
-These notes describe the older 0.4 release, **not** the current compatible package
-set. The strict attribute contexts were a breaking compile-time change; the
-minimum supported Rust version remained **1.91**.
-
-| Package | Previous version | New version |
-| --- | --- | --- |
-| `hemplate` | 0.3.0 | 0.4.0 |
-| `hemplate-derive` | 0.3.0 | 0.4.0 |
-| `hemplate-axum` | 0.3.0 | 0.4.0 |
-| `hemplate-core` | 0.2.0 | 0.3.0 |
-| `hemplate-runtime` | 0.2.0 | 0.3.0 |
-| `hemplate-parser` | 0.1.0 | 0.2.0 |
-| `tree-sitter-hemplate` | 0.1.0 | 0.2.0 |
-
-- A template that interpolated a `String` into `href`, `src` or `action` as a
-  whole value now needs a `Url`, or a fixed start such as `/`. Parse untrusted
-  URLs with `hemplate::Url::parse` and handle errors before rendering.
-- A typed URL or `srcset` must occupy the whole attribute. Build the complete
-  value before interpolation rather than joining trusted values with template
-  text. Use `hemplate::Srcset` for checked candidate lists.
-- Move dynamic data out of `on*`, `style` and `srcdoc` into `data-*` attributes
-  and classes. Code-loading URLs and navigation or SVG animation contexts also
-  require their own context traits; a checked `Url` is not sufficient there.
-- If an application intentionally needs a context bypass, use the corresponding
-  `Trusted*::new_unchecked` value only after establishing trust. It does not
-  validate its input. Raw HTML remains explicit and forbidden in attributes.
-- Direct runtime consumers and framework adapters must use `hemplate-runtime`
-  0.3 alongside the 0.4 facade/derive; the old and new runtime traits belong to
-  different crate versions and are not interchangeable.
+- An interpolation, raw output, component or element inside an SVG or MathML
+  `<script>` or `<style>` is a compile error; it used to render into code.
+- `hemplate_core::surface::ControlKind::File` carries `multiple`, and input
+  `type` keywords are matched ASCII-case-insensitively.
+- All packages share one version and pin each other exactly; the raw-output
+  guard no longer supports mixing a derive with an older runtime.
 
 ## Host compilation and target rendering
 
@@ -369,7 +325,7 @@ The default `hemplate` features provide both derive support and host-side AST AP
 
 ```toml
 [dependencies]
-hemplate = { version = "0.5.0", default-features = false, features = ["derive"] }
+hemplate = { version = "0.6.0", default-features = false, features = ["derive"] }
 ```
 
 Template parsing and proc-macro code generation still run on the host. Generated code renders through the parser-free `hemplate-runtime` crate on the target, so Tree-sitter is not linked into the target dependency graph.
@@ -412,6 +368,7 @@ contributors of these libraries. Hemplate's attribution and license obligations
 are recorded separately from these acknowledgements.
 
 ## Optional attributes
+
 
 A whole dynamic attribute may hold an `Option`. `None` omits the attribute;
 `Some(value)` renders exactly as `value` would, including its context check:

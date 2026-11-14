@@ -1,7 +1,7 @@
 //! Compile-fail tests for invalid derive inputs.
 //!
-//! Compile-pass coverage is handled by derive_test.rs, pattern_tests.rs,
-//! and vue_reftests.rs which already exercise the derive macro extensively.
+//! Compile-pass coverage lives in the other integration tests of this
+//! directory, which render derived templates directly.
 
 #[test]
 fn compile_fail() {
@@ -34,6 +34,9 @@ fn compile_fail() {
         "ui_trusted_child",
         "ui_boolean_string",
         "ui_self_closing_div",
+        "ui_svg_script",
+        "ui_svg_style",
+        "ui_svg_match_script",
         "ui_script_context",
         "ui_style_document_navigation",
         "ui_resource_context",
@@ -58,6 +61,7 @@ fn compile_fail() {
     t.compile_fail("tests/ui/reject_raw_trusted_component.rs");
     t.compile_fail("tests/ui/reject_boolean_string.rs");
     t.compile_fail("tests/ui/reject_self_closing_div.rs");
+    t.compile_fail("tests/ui/reject_svg_code.rs");
 
     // Context rules: a plain value where the attribute is read as code, CSS, a
     // document, navigation, a loaded resource or an unchecked URL does not compile.

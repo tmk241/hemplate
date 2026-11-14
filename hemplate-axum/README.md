@@ -4,14 +4,12 @@ Axum response wrappers for Hemplate views. Requires Rust 1.91 or newer.
 
 ```toml
 [dependencies]
-hemplate = "0.5.0"
-hemplate-axum = "0.5.0"
+hemplate = "0.6.0"
+hemplate-axum = "0.6.0"
 ```
 
-Use `hemplate` and `hemplate-axum` 0.5 together; both use
-`hemplate-runtime` 0.4 so their `Hemplate` traits agree. Runtime traits from
-different versions are not interchangeable. The [workspace compatibility
-table](../README.md#current-package-compatibility) lists the complete package set.
+Every Hemplate package has the same version and pins the others exactly; use
+`hemplate` and `hemplate-axum` of the same release.
 
 ```rust
 use hemplate::{Hemplate, RenderError};

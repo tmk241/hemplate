@@ -19,25 +19,32 @@ position. The html5lib conformance test (`html5_conformance`) guards this: a new
 difference is either fixed or listed with a reason in
 `tests/html5lib-tests/accepted.tsv`. The formatter must never change generated
 code (`fmt_equivalence`).
-Update docs and focused tests when syntax, APIs or compatibility change.
+Update docs and focused tests when syntax, APIs or behavior change. There is no
+compatibility across releases: remove what a change replaces.
 
 ## Checks
 
-Start grammar changes in `tree-sitter-hemplate/grammar.js`, regenerate the parser
-and test its consumers. Before finishing, run:
+Start grammar changes in `tree-sitter-hemplate/grammar.js` and regenerate the
+parser with tree-sitter CLI 0.26.9 (CI checks the generated sources match).
+Before finishing, run:
 
 ```console
 (cd tree-sitter-hemplate && tree-sitter test --rebuild)
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-targets --all-features
+RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps --all-features
 cargo deny check licenses sources
 cargo check -p hemplate-wasm-runtime-test --target wasm32-unknown-unknown
 ```
 
-Verify changed publishable packages with `cargo package`, including its archive
-build. Keep credentials, machine-local files, temporary plans and build/test
-output out of Git.
+## Versions
+
+Every package shares the `[workspace.package]` version and pins its siblings
+exactly (`=x.y.z`); a release bumps that one version and publishes all
+packages. Verify them with `cargo package`, including its archive build. Keep
+credentials, machine-local files, temporary plans and build/test output out of
+Git.
 
 Preserve licenses and attribution, including
 `tree-sitter-hemplate/THIRD_PARTY_LICENSES.md` in the crate archive. Binary

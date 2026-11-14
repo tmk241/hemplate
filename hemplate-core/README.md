@@ -5,12 +5,10 @@ Requires Rust 1.91 or newer.
 
 ```toml
 [dependencies]
-hemplate-core = "0.4.0"
+hemplate-core = "0.6.0"
 ```
 
-Use `hemplate-core` 0.4 with `hemplate-parser` 0.3 and `hemplate-derive` 0.5.
-The [workspace compatibility table](../README.md#current-package-compatibility)
-lists the complete current package set. Strict attribute-context enforcement
+Every Hemplate package has the same version and pins the others exactly. Strict attribute-context enforcement
 belongs to the derive macro; parsing an AST alone is not a security check.
 
 Most applications should depend on the `hemplate` facade crate. Use
@@ -27,6 +25,7 @@ Public pieces:
   rendered markup without post-processing HTML.
 
 ## Build-supplied transforms
+
 
 A build script may write one `Transform` per template below a directory and
 export it with `cargo:rustc-env=HEMPLATE_TRANSFORM_DIR=...`; the file for

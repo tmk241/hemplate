@@ -5,20 +5,18 @@ Requires Rust 1.91 or newer.
 
 ```toml
 [dependencies]
-hemplate-runtime = "0.4.0"
+hemplate-runtime = "0.6.0"
 ```
 
-This runtime's 0.4 traits are used by `hemplate`, `hemplate-derive`, and
-`hemplate-axum` 0.5. Update generated-code consumers and adapters together:
-traits from different runtime versions are not interchangeable. The [workspace
-compatibility table](../README.md#current-package-compatibility) lists the complete
-current package set.
+Generated code, adapters and this runtime are released together under one
+version and pinned exactly; traits from different releases are not
+interchangeable.
 
 ## Raw HTML and attribute contexts
 
+
 Raw interpolation `{+= value =+}` accepts only `HtmlValue` types such as
-`TrustedHtml`; plain `String` and `&str` values do not compile there. This is a
-breaking change in runtime 0.4 (facade 0.5). Use escaped `{+ text +}` for text
+`TrustedHtml`; plain `String` and `&str` values do not compile there. Use escaped `{+ text +}` for text
 and `{+ child +}` for a `Hemplate` component. Raw interpolation rejects
 `Hemplate` components, even if they also implement `HtmlValue`.
 `TrustedHtml::new_unchecked(markup)` performs no validation: use it only where

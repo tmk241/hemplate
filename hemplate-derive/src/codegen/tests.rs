@@ -248,9 +248,6 @@ fn elided_template_attribute_interpolation_is_validated() {
                 r#"<template h-match="val" title="{value}"><template h-case="_">ok</template></template>"#
             ),
             format!(
-                r#"<div h-match="val" title="{value}"><template h-case="_">ok</template></div>"#
-            ),
-            format!(
                 r#"<template h-match="val"><template h-case="_" title="{value}">ok</template></template>"#
             ),
             format!(
@@ -904,4 +901,19 @@ fn noscript_does_not_hide_malformed_template_bindings() {
             "{source}: {error}"
         );
     }
+}
+
+#[test]
+fn match_hosts_are_templates_because_the_host_is_not_rendered() {
+    for heml in [
+        "<div h-match=\"x\"><b h-case=\"_\"></b></div>",
+        // An `<svg>` host would move its cases into HTML, script included.
+        "<svg h-match=\"x\"><script h-case=\"_\">x</script></svg>",
+    ] {
+        let output = codegen_from(heml).to_string();
+        let rejected =
+            output.contains("compile_error") && output.contains("must be on a `<template>`");
+        assert!(rejected, "{heml}: {output}");
+    }
+    assert_no_compile_error("<template h-match=\"x\"><b h-case=\"_\"></b></template>");
 }

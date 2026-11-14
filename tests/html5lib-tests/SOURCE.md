@@ -14,7 +14,7 @@ To refresh this exact snapshot, from the repository root:
 
 ```sh
 mkdir -p target/html5-conformance tests/html5lib-tests
-httpget https://codeload.github.com/html5lib/html5lib-tests/tar.gz/9329e64694e7835d0dcff9811e22856ef6ad16f9 > target/html5-conformance/html5lib-tests.tar.gz
+curl --fail --location https://codeload.github.com/html5lib/html5lib-tests/tar.gz/9329e64694e7835d0dcff9811e22856ef6ad16f9 > target/html5-conformance/html5lib-tests.tar.gz
 tar -xzf target/html5-conformance/html5lib-tests.tar.gz --strip-components=1 \
   -C tests/html5lib-tests --wildcards --no-wildcards-match-slash \
   'html5lib-tests-9329e64694e7835d0dcff9811e22856ef6ad16f9/LICENSE' \

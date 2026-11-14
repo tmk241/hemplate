@@ -7,17 +7,16 @@ re-exports the derive macro and the `Hemplate` trait. Requires Rust 1.91 or newe
 
 ```toml
 [dependencies]
-hemplate = "0.5.0"
+hemplate = "0.6.0"
 ```
 
-When migrating from `hemplate-derive` 0.3 to 0.4, use the 0.4 facade and the
-0.3 runtime together. Templates that previously interpolated plain strings into
-code-sensitive attributes now fail compilation. Parse whole dynamic URLs with
+The derive and the runtime it generates code for are released together and
+pinned exactly. Plain strings interpolated into code-sensitive attributes fail
+compilation. Parse whole dynamic URLs with
 `hemplate::Url::parse`, build `hemplate::Srcset` for candidate lists, or move
 handler/style data to `data-*` attributes and classes. A typed URL or `srcset`
 must be the whole attribute value; other sensitive contexts require their own
-traits. Explicit `Trusted*` values vouch for input without validating it. See the
-facade's migration notes for the full context policy.
+traits. Explicit `Trusted*` values vouch for input without validating it.
 
 The derive macro:
 

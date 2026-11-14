@@ -97,27 +97,10 @@ pub(crate) fn raw_value(
         ) -> ::core::result::Result<(), ::hemplate::__runtime::error::RenderError> {
             ::hemplate::__runtime::render::render_raw(value, buf)
         }
-        // Declared here rather than in the runtime, so this derive works with
-        // every hemplate-runtime 0.4: for a component the runtime's guard
-        // yields a type other than `()`, which fails this bound.
-        #[diagnostic::on_unimplemented(
-            message = "a Hemplate component cannot be inserted as raw output `{{+= .. =+}}`",
-            label = "a component renders itself; raw output would insert it as unchecked markup",
-            note = "compose it with escaped interpolation: `{{+ child +}}`"
-        )]
-        trait RawOutputAllowed {}
-        #[diagnostic::do_not_recommend]
-        impl RawOutputAllowed for () {}
         #[allow(non_snake_case)]
-        fn #guard<G: RawOutputAllowed>(_: G) {}
+        fn #guard<G: ::hemplate::__runtime::render::RawOutputAllowed>(_: G) {}
         let __hemplate_raw = &(#expr);
-        #guard(
-            ::hemplate::__runtime::render::RawGuard::<_, ()>(
-                __hemplate_raw,
-                ::core::marker::PhantomData,
-            )
-            .check(),
-        );
+        #guard(::hemplate::__runtime::render::RawGuard(__hemplate_raw).check());
         #site(__hemplate_raw, buf)?;
     }}
 }
@@ -395,6 +378,10 @@ fn gen_element_inner(ctx: &mut Ctx, stmts: &mut Vec<Stmt>, elem: &Element<String
             }
             let parent_namespace = ctx.namespace;
             let lower_tag = tag.to_ascii_lowercase();
+            if let Some(error) = foreign_code_error(ctx, &lower_tag, &re.1) {
+                stmts.push(Stmt::Dynamic(error));
+                return;
+            }
             ctx.namespace = ctx
                 .namespace
                 .element(&lower_tag)
@@ -452,6 +439,36 @@ fn gen_element_inner(ctx: &mut Ctx, stmts: &mut Vec<Stmt>, elem: &Element<String
             gen_raw_text_element(ctx, stmts, &se.0, se.1.as_ref(), se.2.content());
         }
     }
+}
+
+/// An SVG `<script>` or `<style>` is parsed as ordinary content, unlike its HTML
+/// counterpart, yet the browser runs its text as JavaScript or CSS. HTML
+/// escaping cannot make an interpolated value safe there, so its content must
+/// be static text: no interpolation, raw output, components or elements.
+fn foreign_code_error(
+    ctx: &Ctx,
+    lower_tag: &str,
+    children: &[RangeNode<String, HemplateNode<String>>],
+) -> Option<TokenStream> {
+    let language = match lower_tag {
+        "script" => "JavaScript",
+        "style" => "CSS",
+        _ => return None,
+    };
+    let dynamic = children.iter().find(|child| match child.hemplate() {
+        HemplateNode::Element(_) => true,
+        HemplateNode::Text(text) => text.0.iter().any(|segment| {
+            matches!(
+                segment.hemplate(),
+                TextSegment::Interpolation(_) | TextSegment::RawInterpolation(_)
+            )
+        }),
+        HemplateNode::Entity(_) | HemplateNode::Comment(_) => false,
+    })?;
+    let message = format!(
+        "hemplate: an SVG or MathML `<{lower_tag}>` runs its text as {language}, which no escaping makes safe; write its content as static text and pass data through attributes the code reads"
+    );
+    Some(source_error(&ctx.template_path, dynamic, &message))
 }
 
 /// Elements the HTML parser treats as void: they never have an end tag.

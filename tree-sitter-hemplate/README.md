@@ -9,13 +9,12 @@ Requires Rust 1.91 or newer.
 ```toml
 [dependencies]
 tree-sitter = "0.25"
-tree-sitter-hemplate = "0.3.0"
+tree-sitter-hemplate = "0.6.0"
 ```
 
-When migrating from 0.1, use `hemplate-parser` 0.2 and `hemplate-core` 0.3 if
-you also consume the wrapper or typed AST. The grammar package version is
-independent of the Tree-sitter language ABI. Attribute-context type checks belong
-to `hemplate-derive` 0.4, not to the grammar.
+The grammar package shares the Hemplate version, which is independent of the
+Tree-sitter language ABI. Attribute-context type checks belong to
+`hemplate-derive`, not to the grammar.
 
 ```rust
 let mut parser = tree_sitter::Parser::new();

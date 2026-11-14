@@ -83,12 +83,24 @@ pub(super) fn validate(
                 })?;
             }
             preceding_if = matches!(*name, "h-if" | "h-else-if");
+            // The matching element is never rendered, only the chosen case. Any
+            // element but `<template>` would silently disappear, and a foreign one
+            // (`<svg>`) would move its cases into another namespace.
             if *name == "h-match" {
                 let Element::RegularElement(regular) = element else {
-                    return Err(fail(
-                        "hemplate: h-match must be on <template> or a regular element",
-                    ));
+                    return Err(fail("hemplate: h-match must be on a `<template>` element"));
                 };
+                if !regular
+                    .0
+                    .hemplate()
+                    .0
+                    .content()
+                    .eq_ignore_ascii_case("template")
+                {
+                    return Err(fail(
+                        "hemplate: h-match must be on a `<template>` element; the matching element itself is not rendered",
+                    ));
+                }
                 let has_case = regular.1.iter().any(|child| {
                     if let HemplateNode::Element(element) = child.hemplate() {
                         element_attrs(element).is_some_and(|attrs| {
